@@ -21,12 +21,22 @@ DEFAULT_TEMPLATE_DIR = Path(__file__).parent / "templates"
 
 @dataclass
 class LLMConfig:
-    """LLM provider configuration."""
+    """LLM provider configuration.
+
+    All fields can be overridden via environment variables:
+        PAPERPILOT_PROVIDER=deepseek
+        PAPERPILOT_MODEL=deepseek-chat
+    """
 
     provider: str = "anthropic"  # "anthropic", "openai", or "deepseek"
     model: str = "claude-sonnet-4-20250514"
     temperature: float = 0.3
     max_tokens: int = 8192
+
+    def __post_init__(self) -> None:
+        """Allow env vars to override defaults at runtime."""
+        self.provider = os.getenv("PAPERPILOT_PROVIDER", self.provider)
+        self.model = os.getenv("PAPERPILOT_MODEL", self.model)
 
     @property
     def api_key(self) -> str | None:

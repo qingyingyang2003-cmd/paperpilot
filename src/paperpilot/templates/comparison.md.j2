@@ -1,0 +1,26 @@
+# 论文对比：{{ topic }}
+- 生成时间：{{ generated_at }}
+- 对比论文数：{{ papers | length }}
+
+## 对比表格
+
+| 维度 | {% for p in papers %}{{ p.short_title }} | {% endfor %}
+
+|---|{% for p in papers %}---|{% endfor %}
+
+| 年份 | {% for p in papers %}{{ p.year }} | {% endfor %}
+
+| 研究问题 | {% for p in papers %}{{ p.research_question }} | {% endfor %}
+
+| 方法 | {% for p in papers %}{{ p.methods_brief }} | {% endfor %}
+
+| 关键结果 | {% for p in papers %}{{ p.results_brief }} | {% endfor %}
+
+| 创新点 | {% for p in papers %}{{ p.innovations_brief }} | {% endfor %}
+
+| 局限性 | {% for p in papers %}{{ p.limitations_brief }} | {% endfor %}
+
+{% if analysis %}
+## 综合分析
+{{ analysis }}
+{% endif %}

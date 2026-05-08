@@ -1,0 +1,48 @@
+# {{ title }}
+- 作者：{{ authors | join(", ") }}
+- 期刊/会议：{{ journal }}
+- 年份：{{ year }}
+{% if doi %}- DOI：{{ doi }}{% endif %}
+
+## 一段话总结
+{{ summary }}
+
+## 摘要翻译
+{{ abstract_zh }}
+
+## 框架
+{{ framework }}
+
+## 研究问题
+{{ research_question }}
+
+## 方法
+{{ methods }}
+
+{% if parameters %}
+### 关键实验参数
+{% for key, value in parameters.items() %}
+- {{ key }}：{{ value }}
+{% endfor %}
+{% endif %}
+
+## 关键结果
+{{ results }}
+
+## 创新点
+{{ innovations }}
+
+## 局限性
+{{ limitations }}
+
+{% if figures_markdown %}
+## 关键图表
+{{ figures_markdown }}
+{% endif %}
+
+{% if references %}
+## 值得追踪的参考文献
+{% for ref in references %}
+- {{ ref }}
+{% endfor %}
+{% endif %}

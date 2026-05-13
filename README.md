@@ -1,6 +1,6 @@
 # PaperPilot 📄✨
 
-> 🧪 **丢一篇 PDF 进去，拿一份结构化笔记出来。** 让 AI 替你读论文——你去睡觉，醒来笔记已经整理好了。
+> 🧪 **丢一篇 PDF 进去，拿一份结构化笔记出来。** 让 AI 替你读论文——你负责思考，它负责整理。
 
 [![CI](https://github.com/qingyingyang2003-cmd/paperpilot/actions/workflows/ci.yml/badge.svg)](https://github.com/qingyingyang2003-cmd/paperpilot/actions) [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 

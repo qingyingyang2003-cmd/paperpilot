@@ -1,0 +1,58 @@
+{
+  "dimensions": [
+    {
+      "name": "completeness",
+      "weight": 25,
+      "description": "All required sections present with substantive content",
+      "criteria": [
+        "All 9 sections present (summary, abstract, framework, research_question, methods, results, innovations, limitations, references)",
+        "Each section has 3+ sentences of substantive content (not stubs or placeholders)",
+        "Key experimental parameters listed when applicable",
+        "At least 3 references cited"
+      ]
+    },
+    {
+      "name": "specificity",
+      "weight": 25,
+      "description": "Technical precision and quantitative detail",
+      "criteria": [
+        "Numerical data present in results (measurements, percentages, comparisons)",
+        "Method descriptions include concrete details (equipment, concentrations, protocols)",
+        "Parameters section has specific values with units",
+        "No vague statements like 'good results' without quantification"
+      ]
+    },
+    {
+      "name": "clarity",
+      "weight": 25,
+      "description": "Readability and logical organization",
+      "criteria": [
+        "Summary gives a complete picture in 3-5 sentences",
+        "Technical terms explained on first use (especially for Chinese output)",
+        "Logical flow from problem → method → results → implications",
+        "Sections are self-contained and don't repeat each other excessively"
+      ]
+    },
+    {
+      "name": "insight",
+      "weight": 25,
+      "description": "Depth of analysis beyond surface-level extraction",
+      "criteria": [
+        "Innovations identify genuine novelty (not just 'we did X')",
+        "Limitations are specific and actionable (not generic 'more work needed')",
+        "Research question explains WHY the problem matters",
+        "Framework reveals the logical structure, not just a list of steps"
+      ]
+    }
+  ],
+  "scoring": {
+    "per_dimension": "0-25 points",
+    "total": "0-100 points",
+    "thresholds": {
+      "excellent": 85,
+      "good": 70,
+      "acceptable": 55,
+      "poor": 0
+    }
+  }
+}

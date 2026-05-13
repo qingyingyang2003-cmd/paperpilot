@@ -12,7 +12,9 @@ from paperpilot.tools.pdf_tools import (
 )
 
 # Use a real PDF from the user's research project for integration testing
-SAMPLE_PDF = Path("/mnt/d/Research and study assistant/References/nanoscale-surface-charge-visualization-of-human-hair.pdf")
+SAMPLE_PDF = Path(
+    "/mnt/d/Research and study assistant/References/nanoscale-surface-charge-visualization-of-human-hair.pdf"
+)
 
 
 @pytest.fixture

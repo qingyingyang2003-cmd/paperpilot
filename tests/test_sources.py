@@ -1,10 +1,8 @@
 """Tests for paper sources (Semantic Scholar + x-mol)."""
 
-from pathlib import Path
-
 import pytest
 
-from paperpilot.sources import PaperInfo, PaperSource
+from paperpilot.sources import PaperInfo
 from paperpilot.sources.semantic_scholar import SemanticScholarSource
 from paperpilot.sources.xmol import XMolSource
 
@@ -19,7 +17,9 @@ network = pytest.mark.skipif(
 def pytest_addoption(parser):
     """Add --run-network CLI flag to pytest."""
     parser.addoption(
-        "--run-network", action="store_true", default=False,
+        "--run-network",
+        action="store_true",
+        default=False,
         help="Run tests that hit real network APIs",
     )
 

@@ -29,7 +29,7 @@ MAX_TEXT_CHARS = 120_000
 # ---------------------------------------------------------------------------
 # Public API — called by orchestrator graph nodes
 # ---------------------------------------------------------------------------
-def analyze_paper_from_state(state: "PaperState") -> dict[str, Any]:
+def analyze_paper_from_state(state: PaperState) -> dict[str, Any]:
     """Analyze a paper using LLM, returning a partial state update dict.
 
     This is the main entry point called by the orchestrator's analyze_node.
@@ -54,10 +54,7 @@ def analyze_paper_from_state(state: "PaperState") -> dict[str, Any]:
 
     # Step 1: Create LLM
     llm = _create_llm()
-    console.print(
-        f"  [dim]Provider: {config.llm.provider}, "
-        f"Model: {config.llm.model}[/dim]"
-    )
+    console.print(f"  [dim]Provider: {config.llm.provider}, Model: {config.llm.model}[/dim]")
 
     # Step 2: Build prompt
     metadata = state.get("metadata", {})
@@ -65,8 +62,7 @@ def analyze_paper_from_state(state: "PaperState") -> dict[str, Any]:
     language = state.get("language", "zh")
     prompt = _build_prompt_from_dict(metadata, full_text, language)
     console.print(
-        f"  [dim]Prompt length: {len(prompt):,} chars "
-        f"(paper text: {len(full_text):,} chars)[/dim]"
+        f"  [dim]Prompt length: {len(prompt):,} chars (paper text: {len(full_text):,} chars)[/dim]"
     )
 
     # Step 3: Call LLM
@@ -284,15 +280,14 @@ def _create_llm():
         )
     else:
         raise ValueError(
-            f"Unknown LLM provider: '{provider}'. "
-            f"Supported: 'anthropic', 'openai', 'deepseek'"
+            f"Unknown LLM provider: '{provider}'. Supported: 'anthropic', 'openai', 'deepseek'"
         )
 
 
 # ---------------------------------------------------------------------------
 # Prompt construction
 # ---------------------------------------------------------------------------
-def _build_prompt(state: "PaperState") -> str:
+def _build_prompt(state: PaperState) -> str:
     """Build the analysis prompt from paper state.
 
     The prompt has three parts:
@@ -403,7 +398,7 @@ IMPORTANT: Output ONLY the XML tags with content. Do not add any text before or 
 # ---------------------------------------------------------------------------
 # Response parsing
 # ---------------------------------------------------------------------------
-def _parse_response(content: str, state: "PaperState") -> "PaperState":
+def _parse_response(content: str, state: PaperState) -> PaperState:
     """Parse XML-tagged LLM response into PaperState fields.
 
     Uses regex to extract content between XML tags. This is robust

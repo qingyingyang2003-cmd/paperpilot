@@ -43,10 +43,7 @@ def compare_papers(
 
     # Step 1: Create LLM
     llm = _create_llm()
-    console.print(
-        f"  [dim]Provider: {config.llm.provider}, "
-        f"Model: {config.llm.model}[/dim]"
-    )
+    console.print(f"  [dim]Provider: {config.llm.provider}, Model: {config.llm.model}[/dim]")
 
     # Step 2: Build prompt
     prompt = _build_compare_prompt(states, language)
@@ -84,15 +81,21 @@ def compare_papers_fallback(states: list[dict[str, Any]]) -> dict[str, Any]:
         innovations = state.get("innovations", "")
         limitations = state.get("limitations", "")
 
-        papers.append({
-            "short_title": short_title,
-            "year": year or "N/A",
-            "research_question": state.get("research_question") or "（需要 LLM 分析）",
-            "methods_brief": methods[:150] + "..." if len(methods) > 150 else methods or "N/A",
-            "results_brief": results[:150] + "..." if len(results) > 150 else results or "N/A",
-            "innovations_brief": innovations[:150] + "..." if len(innovations) > 150 else innovations or "N/A",
-            "limitations_brief": limitations[:150] + "..." if len(limitations) > 150 else limitations or "N/A",
-        })
+        papers.append(
+            {
+                "short_title": short_title,
+                "year": year or "N/A",
+                "research_question": state.get("research_question") or "（需要 LLM 分析）",
+                "methods_brief": methods[:150] + "..." if len(methods) > 150 else methods or "N/A",
+                "results_brief": results[:150] + "..." if len(results) > 150 else results or "N/A",
+                "innovations_brief": innovations[:150] + "..."
+                if len(innovations) > 150
+                else innovations or "N/A",
+                "limitations_brief": limitations[:150] + "..."
+                if len(limitations) > 150
+                else limitations or "N/A",
+            }
+        )
 
     topic = _derive_topic(states)
 
@@ -110,10 +113,7 @@ def compare_papers_fallback(states: list[dict[str, Any]]) -> dict[str, Any]:
 def _build_compare_prompt(states: list[dict[str, Any]], language: str) -> str:
     """Build the comparison prompt from multiple state dicts."""
     if language == "zh":
-        lang_instruction = (
-            "请用中文输出。专业术语保留英文原文，"
-            "首次出现时在括号中给出中文翻译。"
-        )
+        lang_instruction = "请用中文输出。专业术语保留英文原文，首次出现时在括号中给出中文翻译。"
     else:
         lang_instruction = "Write the comparison in English."
 
@@ -121,20 +121,20 @@ def _build_compare_prompt(states: list[dict[str, Any]], language: str) -> str:
     for i, state in enumerate(states, 1):
         metadata = state.get("metadata", {})
         block = f"""<paper_input index="{i}">
-Title: {metadata.get('title', '')}
-Authors: {', '.join(metadata.get('authors', []))}
-Year: {metadata.get('year', '')}
-Journal: {metadata.get('journal', '')}
+Title: {metadata.get("title", "")}
+Authors: {", ".join(metadata.get("authors", []))}
+Year: {metadata.get("year", "")}
+Journal: {metadata.get("journal", "")}
 
-Research Question: {state.get('research_question', '')}
+Research Question: {state.get("research_question", "")}
 
-Methods: {state.get('methods', '')}
+Methods: {state.get("methods", "")}
 
-Results: {state.get('results', '')}
+Results: {state.get("results", "")}
 
-Innovations: {state.get('innovations', '')}
+Innovations: {state.get("innovations", "")}
 
-Limitations: {state.get('limitations', '')}
+Limitations: {state.get("limitations", "")}
 </paper_input>"""
         paper_blocks.append(block)
 
@@ -216,15 +216,17 @@ def _parse_compare_response(
             authors = metadata.get("authors", [])
             first_author = authors[0].split()[-1] if authors else "Unknown"
             year = metadata.get("year", "")
-            papers.append({
-                "short_title": f"{first_author} {year}",
-                "year": year or "N/A",
-                "research_question": state.get("research_question", "N/A")[:100],
-                "methods_brief": state.get("methods", "N/A")[:100],
-                "results_brief": state.get("results", "N/A")[:100],
-                "innovations_brief": state.get("innovations", "N/A")[:100],
-                "limitations_brief": state.get("limitations", "N/A")[:100],
-            })
+            papers.append(
+                {
+                    "short_title": f"{first_author} {year}",
+                    "year": year or "N/A",
+                    "research_question": state.get("research_question", "N/A")[:100],
+                    "methods_brief": state.get("methods", "N/A")[:100],
+                    "results_brief": state.get("results", "N/A")[:100],
+                    "innovations_brief": state.get("innovations", "N/A")[:100],
+                    "limitations_brief": state.get("limitations", "N/A")[:100],
+                }
+            )
 
     analysis = _extract_field(content, "analysis")
     topic = _derive_topic(states)

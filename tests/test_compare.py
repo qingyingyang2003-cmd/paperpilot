@@ -121,9 +121,7 @@ class TestBuildComparePrompt:
 # Response parsing tests
 # ---------------------------------------------------------------------------
 class TestParseCompareResponse:
-    def test_parses_all_papers(
-        self, sample_compare_response: str, two_states: list[dict]
-    ) -> None:
+    def test_parses_all_papers(self, sample_compare_response: str, two_states: list[dict]) -> None:
         result = _parse_compare_response(sample_compare_response, two_states)
         assert len(result["papers"]) == 2
 
@@ -137,16 +135,12 @@ class TestParseCompareResponse:
         assert "头发" in paper1["research_question"]
         assert "hopping" in paper1["methods_brief"]
 
-    def test_analysis_extracted(
-        self, sample_compare_response: str, two_states: list[dict]
-    ) -> None:
+    def test_analysis_extracted(self, sample_compare_response: str, two_states: list[dict]) -> None:
         result = _parse_compare_response(sample_compare_response, two_states)
         assert "hopping mode" in result["analysis"]
         assert "Perry 2016" in result["analysis"]
 
-    def test_partial_response_fills_fallback(
-        self, two_states: list[dict]
-    ) -> None:
+    def test_partial_response_fills_fallback(self, two_states: list[dict]) -> None:
         """If only one paper is parsed, the other gets fallback data."""
         partial = """<paper index="1">
 <short_title>Maddar 2019</short_title>

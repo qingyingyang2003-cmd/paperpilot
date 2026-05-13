@@ -6,8 +6,6 @@ Tests three layers:
 3. Error handling — missing tags, malformed input, graceful degradation
 """
 
-from pathlib import Path
-
 import pytest
 
 from paperpilot.agents.analyst import (
@@ -132,12 +130,16 @@ class TestBuildPrompt:
         assert "<parameters>" in prompt
         assert "<key_references>" in prompt
 
-    def test_chinese_instructions_for_zh(self, sample_metadata: dict, sample_full_text: str) -> None:
+    def test_chinese_instructions_for_zh(
+        self, sample_metadata: dict, sample_full_text: str
+    ) -> None:
         prompt = _build_prompt_from_dict(sample_metadata, sample_full_text, "zh")
         assert "中文" in prompt
         assert "通俗易懂" in prompt
 
-    def test_english_instructions_for_en(self, sample_metadata: dict, sample_full_text: str) -> None:
+    def test_english_instructions_for_en(
+        self, sample_metadata: dict, sample_full_text: str
+    ) -> None:
         prompt = _build_prompt_from_dict(sample_metadata, sample_full_text, "en")
         assert "English" in prompt
 

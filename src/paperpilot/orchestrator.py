@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Annotated, Any, Literal, TypedDict
+from typing import Any, Literal, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
@@ -25,7 +25,6 @@ from paperpilot.tools.figure_tools import (
     organize_figures,
 )
 from paperpilot.tools.pdf_tools import (
-    PaperMetadata,
     extract_figures,
     extract_metadata,
     extract_references,
@@ -122,7 +121,8 @@ def parse_node(state: PaperState) -> dict[str, Any]:
             organized = organize_figures(raw_figures, figures_dir, prefix)
             updates["figure_paths"] = [str(p) for p in organized]
             progress.update(
-                task, advance=1,
+                task,
+                advance=1,
                 description=f"[cyan]Extracted {len(organized)} figures",
             )
         else:
@@ -133,7 +133,8 @@ def parse_node(state: PaperState) -> dict[str, Any]:
         refs = extract_references(pdf_path)
         updates["references"] = refs
         progress.update(
-            task, advance=1,
+            task,
+            advance=1,
             description=f"[cyan]Found {len(refs)} references",
         )
 
@@ -230,20 +231,28 @@ def index_node(state: PaperState) -> dict[str, Any]:
         metadata = state.get("metadata", {})
 
         # Build a PaperMetadata-like object for the store
-        _IndexablePaper = type("_IndexablePaper", (), {
-            "metadata": type("_Meta", (), {
-                "title": metadata.get("title", ""),
-                "authors": metadata.get("authors", []),
-                "abstract": metadata.get("abstract", ""),
-                "doi": metadata.get("doi", ""),
-                "journal": metadata.get("journal", ""),
-                "year": metadata.get("year", ""),
-            })(),
-            "summary": state.get("summary", ""),
-            "research_question": state.get("research_question", ""),
-            "methods": state.get("methods", ""),
-            "note_path": Path(state.get("note_path", "")),
-        })
+        _IndexablePaper = type(
+            "_IndexablePaper",
+            (),
+            {
+                "metadata": type(
+                    "_Meta",
+                    (),
+                    {
+                        "title": metadata.get("title", ""),
+                        "authors": metadata.get("authors", []),
+                        "abstract": metadata.get("abstract", ""),
+                        "doi": metadata.get("doi", ""),
+                        "journal": metadata.get("journal", ""),
+                        "year": metadata.get("year", ""),
+                    },
+                )(),
+                "summary": state.get("summary", ""),
+                "research_question": state.get("research_question", ""),
+                "methods": state.get("methods", ""),
+                "note_path": Path(state.get("note_path", "")),
+            },
+        )
 
         store.add_paper(_IndexablePaper)
     except Exception as e:
@@ -424,14 +433,16 @@ def run_search_workflow(
         with SemanticScholarSource() as s2:
             papers = s2.search(query=query, limit=limit)
         for p in papers:
-            results.append({
-                "title": p.title,
-                "authors": ", ".join(p.authors[:3]) + (" et al." if len(p.authors) > 3 else ""),
-                "year": p.year,
-                "doi": p.doi,
-                "source": "semantic_scholar",
-                "origin": "semantic_scholar",
-            })
+            results.append(
+                {
+                    "title": p.title,
+                    "authors": ", ".join(p.authors[:3]) + (" et al." if len(p.authors) > 3 else ""),
+                    "year": p.year,
+                    "doi": p.doi,
+                    "source": "semantic_scholar",
+                    "origin": "semantic_scholar",
+                }
+            )
         console.print(f"  [dim]Found {len(papers)} external results[/dim]")
     except Exception as e:
         console.print(f"  [yellow]Semantic Scholar search failed: {e}[/yellow]")

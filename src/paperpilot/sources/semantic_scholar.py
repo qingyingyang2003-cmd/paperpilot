@@ -158,7 +158,7 @@ class SemanticScholarSource(PaperSource):
         for attempt in range(MAX_RETRIES + 1):
             response = self._client.get(path, params=params)
             if response.status_code == 429 and attempt < MAX_RETRIES:
-                delay = RETRY_BASE_DELAY * (2 ** attempt)
+                delay = RETRY_BASE_DELAY * (2**attempt)
                 time.sleep(delay)
                 continue
             response.raise_for_status()

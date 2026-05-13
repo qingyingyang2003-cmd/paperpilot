@@ -88,7 +88,10 @@ class TestAddAndCount:
         assert tmp_store.count() == 1
 
     def test_add_multiple(
-        self, tmp_store: PaperVectorStore, sample_state: _TestPaperState, second_state: _TestPaperState
+        self,
+        tmp_store: PaperVectorStore,
+        sample_state: _TestPaperState,
+        second_state: _TestPaperState,
     ) -> None:
         tmp_store.add_paper(sample_state)
         tmp_store.add_paper(second_state)
@@ -112,7 +115,10 @@ class TestSearch:
         assert results == []
 
     def test_search_finds_relevant(
-        self, tmp_store: PaperVectorStore, sample_state: _TestPaperState, second_state: _TestPaperState
+        self,
+        tmp_store: PaperVectorStore,
+        sample_state: _TestPaperState,
+        second_state: _TestPaperState,
     ) -> None:
         tmp_store.add_paper(sample_state)
         tmp_store.add_paper(second_state)
@@ -134,7 +140,10 @@ class TestSearch:
         assert "distance" in result
 
     def test_search_respects_n_results(
-        self, tmp_store: PaperVectorStore, sample_state: _TestPaperState, second_state: _TestPaperState
+        self,
+        tmp_store: PaperVectorStore,
+        sample_state: _TestPaperState,
+        second_state: _TestPaperState,
     ) -> None:
         tmp_store.add_paper(sample_state)
         tmp_store.add_paper(second_state)
@@ -150,7 +159,10 @@ class TestListAndRemove:
         assert tmp_store.list_papers() == []
 
     def test_list_papers(
-        self, tmp_store: PaperVectorStore, sample_state: _TestPaperState, second_state: _TestPaperState
+        self,
+        tmp_store: PaperVectorStore,
+        sample_state: _TestPaperState,
+        second_state: _TestPaperState,
     ) -> None:
         tmp_store.add_paper(sample_state)
         tmp_store.add_paper(second_state)
@@ -159,9 +171,7 @@ class TestListAndRemove:
         titles = {p["title"] for p in papers}
         assert "Nanoscale Surface Charge Visualization of Human Hair" in titles
 
-    def test_remove_paper(
-        self, tmp_store: PaperVectorStore, sample_state: _TestPaperState
-    ) -> None:
+    def test_remove_paper(self, tmp_store: PaperVectorStore, sample_state: _TestPaperState) -> None:
         tmp_store.add_paper(sample_state)
         assert tmp_store.count() == 1
         tmp_store.remove_paper(sample_state.metadata.doi)
@@ -169,7 +179,7 @@ class TestListAndRemove:
 
     def test_remove_nonexistent(self, tmp_store: PaperVectorStore) -> None:
         # Should not raise
-        result = tmp_store.remove_paper("nonexistent-doi")
+        tmp_store.remove_paper("nonexistent-doi")
         # ChromaDB may or may not return False for nonexistent IDs
         # The important thing is it doesn't crash
 

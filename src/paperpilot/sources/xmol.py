@@ -14,10 +14,14 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import httpx
 
 from paperpilot.sources import PaperInfo, PaperSource
+
+if TYPE_CHECKING:
+    from bs4 import BeautifulSoup, Tag
 
 # Known x-mol category URL slugs
 XMOL_CATEGORIES = {
@@ -109,8 +113,7 @@ class XMolSource(PaperSource):
             from bs4 import BeautifulSoup
         except ImportError:
             raise ImportError(
-                "beautifulsoup4 is required for x-mol. "
-                "Install it with: uv add beautifulsoup4"
+                "beautifulsoup4 is required for x-mol. Install it with: uv add beautifulsoup4"
             )
 
         with self._get_client() as client:
@@ -133,8 +136,7 @@ class XMolSource(PaperSource):
         """
         if not self.is_authenticated:
             raise RuntimeError(
-                "x-mol requires authentication. "
-                f"Please save your cookie to: {self._cookie_path}"
+                f"x-mol requires authentication. Please save your cookie to: {self._cookie_path}"
             )
 
         slug = XMOL_CATEGORIES.get(category.lower(), category)
@@ -156,7 +158,7 @@ class XMolSource(PaperSource):
 
     def _parse_paper_list(
         self,
-        soup: "BeautifulSoup",
+        soup: BeautifulSoup,
         limit: int = 20,
     ) -> list[PaperInfo]:
         """Parse a list of papers from x-mol HTML.
@@ -200,7 +202,7 @@ class XMolSource(PaperSource):
 
         return papers
 
-    def _parse_single_card(self, card: "Tag") -> PaperInfo | None:
+    def _parse_single_card(self, card: Tag) -> PaperInfo | None:
         """Parse a single paper card element into PaperInfo."""
         try:
             # Title: usually the first <a> with substantial text
@@ -272,7 +274,7 @@ class XMolSource(PaperSource):
         except Exception:
             return None
 
-    def _find_paper_cards_heuristic(self, soup: "BeautifulSoup") -> list:
+    def _find_paper_cards_heuristic(self, soup: BeautifulSoup) -> list:
         """Fallback: find paper-like content blocks using heuristics.
 
         Looks for <div> or <li> elements that contain both a link
@@ -281,9 +283,7 @@ class XMolSource(PaperSource):
         candidates = []
         for el in soup.find_all(["div", "li"]):
             text = el.get_text()
-            has_long_link = any(
-                len(a.get_text(strip=True)) > 20 for a in el.find_all("a")
-            )
+            has_long_link = any(len(a.get_text(strip=True)) > 20 for a in el.find_all("a"))
             has_doi = bool(re.search(r"10\.\d{4,}/", text))
             if has_long_link and (has_doi or len(text) > 200):
                 candidates.append(el)

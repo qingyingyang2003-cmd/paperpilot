@@ -12,7 +12,10 @@ Usage:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import TYPE_CHECKING, Annotated
+
+if TYPE_CHECKING:
+    from paperpilot.sources import PaperSource
 
 import typer
 from rich.console import Console
@@ -33,12 +36,10 @@ def read(
         Path, typer.Option("-o", "--output", help="Output directory for notes")
     ] = Path("./notes"),
     template: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("-t", "--template", help="Custom template file name"),
     ] = None,
-    language: Annotated[
-        str, typer.Option("-l", "--lang", help="Output language: zh or en")
-    ] = "zh",
+    language: Annotated[str, typer.Option("-l", "--lang", help="Output language: zh or en")] = "zh",
     extract_figures: Annotated[
         bool, typer.Option("--figures/--no-figures", help="Extract figures from PDF")
     ] = True,
@@ -69,22 +70,16 @@ def read(
 
     console.print(f"\n[green]Done![/green] Note saved to: {result['note_path']}")
     if result.get("figures"):
-        console.print(
-            f"[green]Figures:[/green] {len(result['figures'])} images extracted"
-        )
+        console.print(f"[green]Figures:[/green] {len(result['figures'])} images extracted")
 
 
 @app.command()
 def compare(
-    pdf_paths: Annotated[
-        list[Path], typer.Argument(help="PDF files to compare (2 or more)")
-    ],
-    output: Annotated[
-        Path, typer.Option("-o", "--output", help="Output file path")
-    ] = Path("./comparison.md"),
-    language: Annotated[
-        str, typer.Option("-l", "--lang", help="Output language: zh or en")
-    ] = "zh",
+    pdf_paths: Annotated[list[Path], typer.Argument(help="PDF files to compare (2 or more)")],
+    output: Annotated[Path, typer.Option("-o", "--output", help="Output file path")] = Path(
+        "./comparison.md"
+    ),
+    language: Annotated[str, typer.Option("-l", "--lang", help="Output language: zh or en")] = "zh",
 ) -> None:
     """Compare multiple papers and generate a comparison table."""
     if len(pdf_paths) < 2:
@@ -118,9 +113,7 @@ def compare(
 @app.command()
 def search(
     query: Annotated[str, typer.Argument(help="Search query for finding papers")],
-    limit: Annotated[
-        int, typer.Option("-n", "--limit", help="Max number of results")
-    ] = 10,
+    limit: Annotated[int, typer.Option("-n", "--limit", help="Max number of results")] = 10,
 ) -> None:
     """Search for related papers using Semantic Scholar + local library."""
     console.print(
@@ -170,7 +163,7 @@ if __name__ == "__main__":
 # ---------------------------------------------------------------------------
 # Helper: create a paper source by name
 # ---------------------------------------------------------------------------
-def _get_source(name: str) -> "PaperSource":
+def _get_source(name: str) -> PaperSource:
     """Create a PaperSource instance by name."""
     from paperpilot.config import config
 
@@ -194,9 +187,7 @@ def fetch(
         str,
         typer.Option("-s", "--source", help="Paper source: semantic_scholar or xmol"),
     ] = "semantic_scholar",
-    limit: Annotated[
-        int, typer.Option("-n", "--limit", help="Max number of results")
-    ] = 10,
+    limit: Annotated[int, typer.Option("-n", "--limit", help="Max number of results")] = 10,
     download: Annotated[
         bool, typer.Option("--download/--no-download", help="Download PDFs")
     ] = False,
@@ -204,9 +195,9 @@ def fetch(
         bool,
         typer.Option("--analyze/--no-analyze", help="Auto-analyze downloaded PDFs"),
     ] = False,
-    output_dir: Annotated[
-        Path, typer.Option("-o", "--output", help="Download directory")
-    ] = Path("./papers"),
+    output_dir: Annotated[Path, typer.Option("-o", "--output", help="Download directory")] = Path(
+        "./papers"
+    ),
 ) -> None:
     """Search and fetch papers from online sources."""
     from rich.table import Table
@@ -257,13 +248,10 @@ def fetch(
                 downloaded.append(result)
             elif p.doi:
                 console.print(
-                    f"  [yellow]--[/yellow] {p.title[:50]}... "
-                    f"(no open-access PDF, DOI: {p.doi})"
+                    f"  [yellow]--[/yellow] {p.title[:50]}... (no open-access PDF, DOI: {p.doi})"
                 )
 
-        console.print(
-            f"\n[green]Downloaded {len(downloaded)}/{len(papers)} PDFs[/green]"
-        )
+        console.print(f"\n[green]Downloaded {len(downloaded)}/{len(papers)} PDFs[/green]")
 
         # Auto-analyze if requested
         if analyze and downloaded:
@@ -279,9 +267,7 @@ def fetch(
                         language="zh",
                         extract_figures=True,
                     )
-                    console.print(
-                        f"  [green]OK[/green] {pdf_path.name} -> {result['note_path']}"
-                    )
+                    console.print(f"  [green]OK[/green] {pdf_path.name} -> {result['note_path']}")
                 except Exception as e:
                     console.print(f"  [red]Error[/red] {pdf_path.name}: {e}")
 
@@ -298,9 +284,7 @@ def browse(
         str,
         typer.Option("-s", "--source", help="Paper source (xmol recommended)"),
     ] = "xmol",
-    page: Annotated[
-        int, typer.Option("-p", "--page", help="Page number")
-    ] = 1,
+    page: Annotated[int, typer.Option("-p", "--page", help="Page number")] = 1,
 ) -> None:
     """Browse latest papers by subject category."""
     from rich.table import Table

@@ -53,7 +53,7 @@ class PaperVectorStore:
             metadata={"description": "PaperPilot analyzed papers"},
         )
 
-    def add_paper(self, state: "PaperState") -> None:
+    def add_paper(self, state: PaperState) -> None:
         """Index a paper after analysis.
 
         Combines key text fields into a single document for embedding.

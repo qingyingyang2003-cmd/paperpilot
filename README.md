@@ -1,10 +1,12 @@
-# PaperPilot
+# PaperPilot 📄✨
 
-AI-powered scientific paper analysis agent. Read a PDF, get structured notes — from your terminal.
+> 🧪 **PDF in, structured notes out.** Let AI read your papers — wake up to organized, searchable research notes.
 
-PaperPilot 是一个 AI 驱动的科研论文分析工具。输入一篇 PDF，自动输出结构化笔记：一段话总结、摘要翻译、研究框架、方法、结果、创新点、局限性，以及值得追踪的参考文献。
+[![CI](https://github.com/qingyingyang2003-cmd/paperpilot/actions/workflows/ci.yml/badge.svg)](https://github.com/qingyingyang2003-cmd/paperpilot/actions) [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-```
+PaperPilot 是一个 AI 驱动的科研论文分析 Agent。输入一篇 PDF，自动输出结构化笔记：一段话总结、摘要翻译、研究框架、方法、结果、创新点、局限性，以及值得追踪的参考文献。
+
+```bash
 paperpilot read paper.pdf
 ```
 
@@ -20,40 +22,60 @@ Done! Note saved to: ./notes/nanoscale-surface-charge-hair.md
 
 ---
 
-## Features
+## 🎯 Features
 
-- **Single-paper analysis** — PDF in, structured Markdown note out (8 sections)
-- **Multi-paper comparison** — compare 2+ papers side-by-side with LLM-generated analysis table
-- **LLM-powered** — Claude or GPT reads the paper and generates analysis in Chinese or English
-- **Semantic search (RAG)** — analyzed papers auto-index into ChromaDB; search across your local library + Semantic Scholar in one command
-- **Paper search** — find papers via Semantic Scholar API (free, no key needed)
-- **Paper fetch** — search + download open-access PDFs + auto-analyze
-- **Category browsing** — browse latest papers on x-mol.com by subject
-- **Figure extraction** — pull images from PDFs, embed in notes
-- **Template-driven** — customize note format with Jinja2 templates
-- **Graceful degradation** — works without API key (metadata-only notes), never crashes
-
-## Architecture
-
-```
-┌─────────────────────────────┐
-│        CLI Layer            │  Typer + Rich
-├─────────────────────────────┤
-│     Orchestrator Layer      │  LangGraph StateGraph
-├─────────────────────────────┤
-│       Agent Layer           │  Parser / Analyst / Compare / Search
-├─────────────────────────────┤
-│       Tools Layer           │  PDF parsing / templates / search APIs
-└─────────────────────────────┘
-```
-
-Four layers, each depends only on the layer below. Tools are deterministic functions (no LLM). Agents add intelligence on top. The orchestrator uses a LangGraph `StateGraph` with conditional routing — nodes receive a shared `PaperState` TypedDict and return partial updates.
-
-See [docs/architecture.md](docs/architecture.md) for the full design document.
+| Feature | Command | Description |
+|---------|---------|-------------|
+| 📖 Single-paper analysis | `paperpilot read paper.pdf` | PDF → structured Markdown note (8 sections) |
+| 📊 Multi-paper comparison | `paperpilot compare a.pdf b.pdf` | Side-by-side comparison table + comprehensive analysis |
+| 🔍 Semantic search (RAG) | `paperpilot search "keyword"` | Search local library (ChromaDB) + Semantic Scholar |
+| 📥 Paper fetch | `paperpilot fetch "topic" --download` | Find + download open-access PDFs + auto-analyze |
+| 📂 Category browsing | `paperpilot browse chemistry` | Browse latest papers by subject (x-mol) |
+| 🖼️ Figure extraction | `--figures` (default on) | Pull images from PDFs, embed in notes |
+| 🌐 Multi-provider LLM | `PAPERPILOT_PROVIDER=openai` | Claude / GPT / DeepSeek, switch via env var |
+| 🛡️ Graceful degradation | — | Works without API key (metadata-only notes), never crashes |
 
 ---
 
-## Quick Start
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  CLI Layer                          Typer + Rich        │
+├─────────────────────────────────────────────────────────┤
+│  Orchestrator Layer                 LangGraph StateGraph│
+├─────────────────────────────────────────────────────────┤
+│  Agent Layer          Parser / Analyst / Compare        │
+├─────────────────────────────────────────────────────────┤
+│  Tools Layer          PDF / Templates / Search APIs     │
+└─────────────────────────────────────────────────────────┘
+```
+
+The orchestrator is a **compiled LangGraph `StateGraph`** with conditional routing:
+
+```
+START → [parse] →─┬─ [analyze] ──────┐
+                   │                  ├→ [render] → [index] → END
+                   └─ [skip_analyze] ─┘
+```
+
+- **Conditional edge**: after `parse`, checks if LLM API key is configured
+- **If yes** → full LLM analysis (Claude/GPT)
+- **If no** → graceful fallback (metadata-only notes)
+
+<details>
+<summary>📐 Design Principles</summary>
+
+- **Graceful degradation** — every component has a fallback. No API key? Metadata-only notes. API error? Partial results. PDF parsing fails? Heuristic fallback.
+- **Local first** — all data stays on your machine. Only LLM API calls send text externally.
+- **Tools vs Agents** — deterministic work (PDF parsing, file I/O) uses Tools. Only understanding and analysis uses LLM-powered Agents. This saves cost and improves reliability.
+- **Template-driven** — note format is a Jinja2 template, not hardcoded. Customize it for your field.
+
+</details>
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
@@ -64,15 +86,9 @@ See [docs/architecture.md](docs/architecture.md) for the full design document.
 ### Install
 
 ```bash
-# Clone
-git clone https://github.com/qingyingyang200-cmd/paperpilot.git
+git clone https://github.com/qingyingyang2003-cmd/paperpilot.git
 cd paperpilot
-
-# Install with uv (recommended)
-uv sync
-
-# Or with pip
-pip install -e .
+uv sync          # or: pip install -e .
 ```
 
 ### Set up API key
@@ -83,41 +99,43 @@ export ANTHROPIC_API_KEY=sk-ant-xxx
 
 # Or OpenAI
 export OPENAI_API_KEY=sk-xxx
+
+# Or DeepSeek
+export DEEPSEEK_API_KEY=sk-xxx
+export PAPERPILOT_PROVIDER=deepseek
+export PAPERPILOT_MODEL=deepseek-chat
 ```
 
 ### Usage
 
 ```bash
-# Analyze a paper — generates structured notes
+# Analyze a paper
 paperpilot read paper.pdf
 
 # Specify output directory and language
 paperpilot read paper.pdf -o ./notes --lang en
 
-# Compare multiple papers — generates comparison table
+# Compare multiple papers
 paperpilot compare paper1.pdf paper2.pdf paper3.pdf -o comparison.md
 
 # Search papers (Semantic Scholar + local library)
 paperpilot search "scanning ion conductance microscopy"
 
-# Fetch papers from Semantic Scholar
-paperpilot fetch "SICM surface charge" -n 5
+# Fetch + download + auto-analyze
+paperpilot fetch "SICM surface charge" --download --analyze
 
-# Search + download open-access PDFs
-paperpilot fetch "SICM surface charge" --download -o ./papers
-
-# Search + download + auto-analyze
-paperpilot fetch "SICM hair" --download --analyze
-
-# Browse latest papers by category (requires x-mol cookie)
+# Browse latest papers by category
 paperpilot browse chemistry --source xmol
 ```
 
 ---
 
-## Example Output
+## 📝 Example Output
 
-Running `paperpilot read nanoscale-surface-charge-hair.pdf` produces a note like this:
+Running `paperpilot read nanoscale-surface-charge-hair.pdf` produces:
+
+<details>
+<summary>Click to expand sample note</summary>
 
 ```markdown
 # Nanoscale Surface Charge Visualization of Human Hair
@@ -146,14 +164,29 @@ SICM hopping mode + potential-pulse chronoamperometry，每个像素点
 2. 漂白处理后：电荷增至 -100 mC/m²
 3. 护发素处理后：电荷从负转正约 +5 mC/m²
 
-...
+## 创新点
+- 首次实现头发表面电荷的纳米级定量成像
+- SICM 在液相中工作，避免了 KPFM 的湿度问题
+- 同步获取形貌+电荷
+
+## 局限性
+- 只测了一位供体的头发，样本代表性有限
+- FEM 模型假设平面基底
+- 扫描区域较小（~10×10 μm）
+
+## 值得追踪的参考文献
+- Perry et al., JACS 2016 — SICM 形貌+电荷同步测量
+- Kang et al., ACS Nano 2017 — hopping mode 速度提升
+- Page et al., Anal. Chem. 2016 — potential-pulse 方法
 ```
+
+</details>
 
 See [examples/](examples/) for full sample outputs.
 
 ---
 
-## How It Works
+## 🔧 How It Works
 
 ### The Read Pipeline
 
@@ -161,22 +194,25 @@ See [examples/](examples/) for full sample outputs.
 paperpilot read paper.pdf
         │
         ▼
-┌─────────────────────────────────────────────────┐
-│  LangGraph StateGraph (compiled, reusable)      │
-│                                                 │
-│  START → [parse] → ─┬─ [analyze] ──┐           │
-│                      │              ├→ [render]  │
-│                      └─ [skip] ─────┘     │     │
-│                                       [index]   │
-│                                           │     │
-│                                          END    │
-└─────────────────────────────────────────────────┘
+   ┌─────────┐     Deterministic (no LLM)
+   │  Parse  │──→  Extract text, metadata, figures, references (PyMuPDF)
+   └────┬────┘
+        │
+        ▼ ← conditional edge (API key available?)
+   ┌─────────┐     LLM-powered
+   │ Analyze │──→  Claude/GPT generates: summary, methods, results,
+   └────┬────┘     innovations, limitations, key references
         │
         ▼
-   ./notes/paper-title.md
+   ┌─────────┐     Deterministic
+   │ Render  │──→  Jinja2 template + analysis → Markdown note
+   └────┬────┘
+        │
+        ▼
+   ┌─────────┐     Background
+   │  Index  │──→  Auto-index into ChromaDB for future search
+   └─────────┘
 ```
-
-The conditional edge after `parse` checks if an LLM API key is configured. If yes, route to `analyze` (full LLM analysis). If no, route to `skip_analyze` (graceful degradation with metadata-only notes).
 
 ### The Compare Pipeline
 
@@ -184,19 +220,13 @@ The conditional edge after `parse` checks if an LLM API key is configured. If ye
 paperpilot compare a.pdf b.pdf c.pdf
         │
         ▼
-   ┌──────────────┐
-   │ Parse + Analyze each paper individually
-   └──────┬───────┘
-          │
-          ▼
-   ┌──────────────┐
-   │ Compare Agent │  LLM compares all papers side-by-side
-   └──────┬───────┘   Generates abbreviated fields + comprehensive analysis
-          │
-          ▼
-   ┌──────────────┐
-   │ Render Table │  Jinja2 comparison template → Markdown table
-   └──────────────┘
+   Parse + Analyze each paper (reuses read graph)
+        │
+        ▼
+   Compare Agent (LLM generates side-by-side table + analysis)
+        │
+        ▼
+   Jinja2 comparison template → Markdown table
 ```
 
 ### The Search Pipeline
@@ -211,104 +241,89 @@ paperpilot search "SICM surface charge"
         │                      │
         └──────────┬───────────┘
                    ▼
-            Deduplicate by DOI
-            Display results
+         Deduplicate by DOI → Display results
 ```
-
-### Paper Sources
-
-| Source | Auth | Features |
-|--------|------|----------|
-| **Semantic Scholar** | None (free API) | Search 200M+ papers, open-access PDF links, Unpaywall fallback |
-| **x-mol.com** | Cookie | Search + browse by category, Chinese academic content |
-
-### Design Principles
-
-- **Graceful degradation** — every component has a fallback. No API key? Metadata-only notes. API error? Partial results. PDF parsing fails? Heuristic fallback.
-- **Local first** — all data stays on your machine. Only LLM API calls send text externally.
-- **Tools vs Agents** — deterministic work (PDF parsing, file I/O) uses Tools. Only understanding and analysis uses LLM-powered Agents. This saves cost and improves reliability.
-- **Template-driven** — note format is a Jinja2 template, not hardcoded. Customize it for your field.
 
 ---
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 | Component | Choice | Why |
 |-----------|--------|-----|
-| Vector store | ChromaDB | Local, zero-config, built-in embeddings (all-MiniLM-L6-v2) |
-| LLM | Claude (Anthropic) + OpenAI | Claude's 200K context fits long papers; OpenAI as alternative |
-| LLM framework | LangGraph + LangChain | StateGraph for workflow orchestration with conditional routing; LangChain for LLM abstraction |
-| PDF parsing | PyMuPDF (fitz) | Fast C-based extraction: text, images, metadata |
-| CLI | Typer + Rich | Type-annotated CLI with colored terminal output |
-| Templates | Jinja2 | Mature, flexible, same engine as Flask/Django |
-| HTTP | httpx | Modern async-capable HTTP client |
-| HTML parsing | BeautifulSoup4 | For x-mol web scraping |
-| Package manager | uv | 100x faster than pip, manages Python + venv + deps |
-| Testing | pytest | Python community standard |
+| **Orchestration** | LangGraph | StateGraph with conditional routing for workflow control |
+| **LLM** | Claude + OpenAI + DeepSeek | Claude's 200K context fits long papers; multi-provider support |
+| **PDF parsing** | PyMuPDF (fitz) | Fast C-based extraction: text, images, metadata |
+| **Vector store** | ChromaDB | Local, zero-config, built-in embeddings (all-MiniLM-L6-v2) |
+| **CLI** | Typer + Rich | Type-annotated CLI with colored terminal output |
+| **Templates** | Jinja2 | Mature, flexible, same engine as Flask/Django |
+| **HTTP** | httpx | Modern async-capable HTTP client |
+| **Package manager** | uv | 100x faster than pip, manages Python + venv + deps |
+| **Testing** | pytest | 83 tests, all passing |
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 paperpilot/
 ├── src/paperpilot/
-│   ├── cli.py              # CLI commands: read, fetch, browse, search, compare
+│   ├── cli.py              # CLI commands (read, compare, search, fetch, browse)
 │   ├── config.py           # Configuration (API keys, models, paths)
-│   ├── orchestrator.py     # LangGraph StateGraph workflows + PaperState
+│   ├── orchestrator.py     # LangGraph StateGraph + PaperState TypedDict
 │   ├── agents/
-│   │   ├── analyst.py      # LLM-powered paper analysis
+│   │   ├── analyst.py      # LLM-powered paper analysis (XML structured output)
 │   │   └── compare.py      # LLM-powered multi-paper comparison
 │   ├── sources/
 │   │   ├── __init__.py     # PaperSource ABC + PaperInfo dataclass
-│   │   ├── semantic_scholar.py  # Semantic Scholar API (free)
+│   │   ├── semantic_scholar.py  # Semantic Scholar API (free, 200M+ papers)
 │   │   └── xmol.py         # x-mol.com scraper (cookie auth)
 │   ├── tools/
 │   │   ├── pdf_tools.py    # PDF text/metadata/figure/reference extraction
 │   │   ├── figure_tools.py # Figure management and markdown embedding
 │   │   └── template_tools.py  # Jinja2 template rendering
-│   ├── store/
-│   │   └── vector_store.py # ChromaDB vector store for RAG search
-│   └── templates/
-│       ├── paper_note.md.j2     # Single paper note template
-│       └── comparison.md.j2     # Multi-paper comparison template
+│   └── store/
+│       └── vector_store.py # ChromaDB vector store for RAG search
 ├── tests/                  # 83 tests (all passing)
-├── docs/
-│   ├── architecture.md     # Full architecture design document
-│   ├── phase2-analyst-agent.md  # Analyst Agent design decisions
-│   └── phase3-compare-rag.md   # Compare Agent + RAG design decisions
+├── docs/                   # Architecture + design decision docs
 └── examples/               # Sample outputs
 ```
 
-## Development
+---
+
+## 🧑‍💻 Development
 
 ```bash
 # Install dev dependencies
 uv sync
 
-# Run tests
-uv run pytest
-
-# Run tests with verbose output
-uv run pytest -v
-
-# Run only local tests (no network, no API key needed)
+# Run tests (no network, no API key needed)
 uv run pytest -v -k "not network"
 
-# Run network tests (hits real APIs)
+# Run all tests including network
 uv run pytest --run-network
 ```
 
-## Roadmap
+---
+
+## 🗺️ Roadmap
 
 - [x] Phase 1: Project scaffold + PDF tools + CLI
 - [x] Phase 1.5: Paper sources (Semantic Scholar + x-mol)
 - [x] Phase 2: Analyst Agent (LLM integration)
 - [x] Phase 3: Compare Agent + Search Agent + RAG (ChromaDB)
 - [x] Phase 4: README, examples, CI
+- [x] Phase 5: LangGraph StateGraph refactor + code review
+- [ ] Phase 6: Async parallel processing for multi-paper workflows
+- [ ] Phase 7: `paperpilot config` command + `.env` support
 
 ---
 
-## License
+## 📄 License
 
 MIT
+
+---
+
+<p align="center">
+  <i>Built for researchers who'd rather think than read. 🧠</i>
+</p>

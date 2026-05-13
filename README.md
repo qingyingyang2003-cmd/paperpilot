@@ -220,6 +220,7 @@ paper3.pdf ─┘
 | **Templates** | Jinja2 | 笔记格式可自定义，不硬编码 |
 | **Package** | uv | 比 pip 快 100 倍，一个工具管所有 |
 | **Testing** | pytest | 83 个测试，不调真实 API 也能跑 |
+| **Evaluation** | LLM-as-Judge | 四维度评分 + 自动化报告 |
 
 ---
 
@@ -244,6 +245,7 @@ paperpilot/
 │   └── store/
 │       └── vector_store.py # ChromaDB 封装：入库/搜索/去重
 ├── tests/                  # 83 tests, all passing
+├── eval/                   # LLM-as-Judge quality evaluation
 ├── docs/                   # 架构文档 + 设计决策记录
 └── examples/               # 示例输出
 ```
@@ -254,9 +256,30 @@ paperpilot/
 
 ```bash
 uv sync                              # 安装依赖
-uv run pytest -v -k "not network"    # 跑测试（不需要网络和 API key）
+make test                            # 跑测试（不需要网络和 API key）
+make lint                            # 代码检查
+make format                          # 自动格式化
 uv run pytest --run-network          # 跑网络测试（会调真实 API）
 ```
+
+---
+
+## 📊 Evaluation
+
+PaperPilot 内置了 LLM-as-Judge 评估系统，对生成的笔记做四维度打分：
+
+```bash
+uv run python eval/eval.py examples/output/*.md --summary
+```
+
+| Dimension | Avg Score | 说明 |
+|-----------|-----------|------|
+| Completeness | 24.0/25 | 所有字段完整填充 |
+| Specificity | 24.6/25 | 定量数据精确 |
+| Clarity | 23.0/25 | 逻辑清晰、术语解释到位 |
+| Insight | 22.0/25 | 深度分析（最弱项，持续优化中） |
+
+> 已知局限：同模型自评存在 bias，绝对分数偏高。详见 [`eval/README.md`](eval/README.md)。
 
 ---
 
@@ -268,8 +291,10 @@ uv run pytest --run-network          # 跑网络测试（会调真实 API）
 - [x] Phase 3: Compare Agent + Search Agent + RAG
 - [x] Phase 4: README, examples, CI
 - [x] Phase 5: LangGraph StateGraph 重构
+- [x] Phase 5.5: 质量评估系统（LLM-as-Judge）
 - [ ] Phase 6: 多篇论文异步并行处理
 - [ ] Phase 7: `paperpilot config` 持久化配置
+- [ ] Phase 8: Cross-model evaluation + human baseline
 
 ---
 

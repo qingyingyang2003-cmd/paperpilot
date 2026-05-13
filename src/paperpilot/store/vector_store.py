@@ -16,10 +16,7 @@ Design decisions:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from paperpilot.orchestrator import PaperState
+from typing import Any
 
 # Default persist directory (relative to cwd)
 DEFAULT_PERSIST_DIR = ".paperpilot/chroma"
@@ -53,49 +50,61 @@ class PaperVectorStore:
             metadata={"description": "PaperPilot analyzed papers"},
         )
 
-    def add_paper(self, state: PaperState) -> None:
+    def add_paper(self, state: dict[str, Any]) -> None:
         """Index a paper after analysis.
 
         Combines key text fields into a single document for embedding.
         Stores metadata for display in search results.
 
         Args:
-            state: PaperState with metadata and analysis fields filled.
+            state: Dict with 'metadata' (dict with title, authors, abstract,
+                   doi, journal, year), 'summary', 'research_question',
+                   'methods', and 'note_path' keys.
         """
+        meta = state.get("metadata", {})
+        title = meta.get("title", "")
+        abstract = meta.get("abstract", "")
+        authors = meta.get("authors", [])
+        doi = meta.get("doi", "")
+        journal = meta.get("journal", "")
+        year = meta.get("year", "")
+
+        summary = state.get("summary", "")
+        research_question = state.get("research_question", "")
+        methods = state.get("methods", "")
+        note_path = state.get("note_path", "")
+
         # Build the document text for embedding
-        # Combine the most semantically meaningful fields
-        parts = [
-            f"Title: {state.metadata.title}",
-        ]
-        if state.metadata.abstract:
-            parts.append(f"Abstract: {state.metadata.abstract}")
-        if state.summary:
-            parts.append(f"Summary: {state.summary}")
-        if state.research_question:
-            parts.append(f"Research Question: {state.research_question}")
-        if state.methods:
-            parts.append(f"Methods: {state.methods}")
+        parts = [f"Title: {title}"]
+        if abstract:
+            parts.append(f"Abstract: {abstract}")
+        if summary:
+            parts.append(f"Summary: {summary}")
+        if research_question:
+            parts.append(f"Research Question: {research_question}")
+        if methods:
+            parts.append(f"Methods: {methods}")
 
         document = "\n\n".join(parts)
 
         # Use DOI as unique ID if available, otherwise use title hash
-        doc_id = state.metadata.doi if state.metadata.doi else _title_to_id(state.metadata.title)
+        doc_id = doi if doi else _title_to_id(title)
 
         # Metadata for display (ChromaDB metadata values must be str/int/float/bool)
-        metadata: dict[str, str | int | float | bool] = {
-            "title": state.metadata.title or "",
-            "authors": ", ".join(state.metadata.authors) if state.metadata.authors else "",
-            "year": state.metadata.year or "",
-            "doi": state.metadata.doi or "",
-            "journal": state.metadata.journal or "",
-            "note_path": str(state.note_path) if state.note_path else "",
+        chroma_metadata: dict[str, str | int | float | bool] = {
+            "title": title or "",
+            "authors": ", ".join(authors) if authors else "",
+            "year": year or "",
+            "doi": doi or "",
+            "journal": journal or "",
+            "note_path": str(note_path) if note_path else "",
         }
 
         # Upsert: if paper already exists (same DOI), update it
         self._collection.upsert(
             ids=[doc_id],
             documents=[document],
-            metadatas=[metadata],
+            metadatas=[chroma_metadata],
         )
 
     def search(self, query: str, n_results: int = 5) -> list[dict[str, Any]]:

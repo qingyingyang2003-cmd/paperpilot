@@ -228,33 +228,7 @@ def index_node(state: PaperState) -> dict[str, Any]:
         from paperpilot.store.vector_store import PaperVectorStore
 
         store = PaperVectorStore()
-        metadata = state.get("metadata", {})
-
-        # Build a PaperMetadata-like object for the store
-        _IndexablePaper = type(
-            "_IndexablePaper",
-            (),
-            {
-                "metadata": type(
-                    "_Meta",
-                    (),
-                    {
-                        "title": metadata.get("title", ""),
-                        "authors": metadata.get("authors", []),
-                        "abstract": metadata.get("abstract", ""),
-                        "doi": metadata.get("doi", ""),
-                        "journal": metadata.get("journal", ""),
-                        "year": metadata.get("year", ""),
-                    },
-                )(),
-                "summary": state.get("summary", ""),
-                "research_question": state.get("research_question", ""),
-                "methods": state.get("methods", ""),
-                "note_path": Path(state.get("note_path", "")),
-            },
-        )
-
-        store.add_paper(_IndexablePaper)
+        store.add_paper(state)
     except Exception as e:
         logger.debug(f"Vector store indexing skipped: {e}")
 

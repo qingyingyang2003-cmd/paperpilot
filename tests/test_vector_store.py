@@ -4,27 +4,11 @@ Tests use a temporary directory for ChromaDB persistence,
 so no real data is affected and cleanup is automatic.
 """
 
-from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
 
 from paperpilot.store.vector_store import PaperVectorStore, _title_to_id
-from paperpilot.tools.pdf_tools import PaperMetadata
-
-
-# ---------------------------------------------------------------------------
-# Test helper — lightweight paper object for vector store tests
-# ---------------------------------------------------------------------------
-@dataclass
-class _TestPaperState:
-    """Minimal paper state for testing the vector store."""
-
-    metadata: PaperMetadata = field(default_factory=PaperMetadata)
-    summary: str = ""
-    research_question: str = ""
-    methods: str = ""
-    note_path: Path = field(default_factory=Path)
 
 
 # ---------------------------------------------------------------------------
@@ -37,43 +21,43 @@ def tmp_store(tmp_path: Path) -> PaperVectorStore:
 
 
 @pytest.fixture
-def sample_state() -> _TestPaperState:
-    """A paper state with realistic data for indexing."""
-    state = _TestPaperState()
-    state.metadata = PaperMetadata(
-        title="Nanoscale Surface Charge Visualization of Human Hair",
-        authors=["Faduma M. Maddar", "David Perry"],
-        journal="Analytical Chemistry",
-        year="2019",
-        doi="10.1021/acs.analchem.8b05977",
-        pages=8,
-        abstract="We present a method for nanoscale surface charge mapping of hair.",
-    )
-    state.summary = "首次用 SICM 实现头发表面电荷纳米级定量可视化"
-    state.research_question = "如何在液相环境中对头发表面电荷进行纳米级定量成像？"
-    state.methods = "SICM hopping mode + potential-pulse chronoamperometry"
-    state.note_path = Path("notes/hair-charge.md")
-    return state
+def sample_state() -> dict:
+    """A paper state dict with realistic data for indexing."""
+    return {
+        "metadata": {
+            "title": "Nanoscale Surface Charge Visualization of Human Hair",
+            "authors": ["Faduma M. Maddar", "David Perry"],
+            "journal": "Analytical Chemistry",
+            "year": "2019",
+            "doi": "10.1021/acs.analchem.8b05977",
+            "pages": 8,
+            "abstract": "We present a method for nanoscale surface charge mapping of hair.",
+        },
+        "summary": "首次用 SICM 实现头发表面电荷纳米级定量可视化",
+        "research_question": "如何在液相环境中对头发表面电荷进行纳米级定量成像？",
+        "methods": "SICM hopping mode + potential-pulse chronoamperometry",
+        "note_path": "notes/hair-charge.md",
+    }
 
 
 @pytest.fixture
-def second_state() -> _TestPaperState:
+def second_state() -> dict:
     """A second paper state for multi-paper tests."""
-    state = _TestPaperState()
-    state.metadata = PaperMetadata(
-        title="Surface Charge Visualization at Viable Living Cells",
-        authors=["David Perry", "Ashley Page"],
-        journal="JACS",
-        year="2016",
-        doi="10.1021/jacs.6b04065",
-        pages=6,
-        abstract="We demonstrate surface charge mapping of living cells using SICM.",
-    )
-    state.summary = "首次在活细胞上实现 SICM 电荷成像"
-    state.research_question = "如何对活细胞表面电荷进行纳米级成像？"
-    state.methods = "SICM hopping mode with bias modulation"
-    state.note_path = Path("notes/cell-charge.md")
-    return state
+    return {
+        "metadata": {
+            "title": "Surface Charge Visualization at Viable Living Cells",
+            "authors": ["David Perry", "Ashley Page"],
+            "journal": "JACS",
+            "year": "2016",
+            "doi": "10.1021/jacs.6b04065",
+            "pages": 6,
+            "abstract": "We demonstrate surface charge mapping of living cells using SICM.",
+        },
+        "summary": "首次在活细胞上实现 SICM 电荷成像",
+        "research_question": "如何对活细胞表面电荷进行纳米级成像？",
+        "methods": "SICM hopping mode with bias modulation",
+        "note_path": "notes/cell-charge.md",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -83,22 +67,22 @@ class TestAddAndCount:
     def test_empty_store(self, tmp_store: PaperVectorStore) -> None:
         assert tmp_store.count() == 0
 
-    def test_add_paper(self, tmp_store: PaperVectorStore, sample_state: _TestPaperState) -> None:
+    def test_add_paper(self, tmp_store: PaperVectorStore, sample_state: dict) -> None:
         tmp_store.add_paper(sample_state)
         assert tmp_store.count() == 1
 
     def test_add_multiple(
         self,
         tmp_store: PaperVectorStore,
-        sample_state: _TestPaperState,
-        second_state: _TestPaperState,
+        sample_state: dict,
+        second_state: dict,
     ) -> None:
         tmp_store.add_paper(sample_state)
         tmp_store.add_paper(second_state)
         assert tmp_store.count() == 2
 
     def test_upsert_same_doi(
-        self, tmp_store: PaperVectorStore, sample_state: _TestPaperState
+        self, tmp_store: PaperVectorStore, sample_state: dict
     ) -> None:
         """Adding the same paper twice (same DOI) should not duplicate."""
         tmp_store.add_paper(sample_state)
@@ -117,8 +101,8 @@ class TestSearch:
     def test_search_finds_relevant(
         self,
         tmp_store: PaperVectorStore,
-        sample_state: _TestPaperState,
-        second_state: _TestPaperState,
+        sample_state: dict,
+        second_state: dict,
     ) -> None:
         tmp_store.add_paper(sample_state)
         tmp_store.add_paper(second_state)
@@ -128,7 +112,7 @@ class TestSearch:
         assert results[0]["title"] == "Nanoscale Surface Charge Visualization of Human Hair"
 
     def test_search_returns_metadata(
-        self, tmp_store: PaperVectorStore, sample_state: _TestPaperState
+        self, tmp_store: PaperVectorStore, sample_state: dict
     ) -> None:
         tmp_store.add_paper(sample_state)
         results = tmp_store.search("SICM")
@@ -142,8 +126,8 @@ class TestSearch:
     def test_search_respects_n_results(
         self,
         tmp_store: PaperVectorStore,
-        sample_state: _TestPaperState,
-        second_state: _TestPaperState,
+        sample_state: dict,
+        second_state: dict,
     ) -> None:
         tmp_store.add_paper(sample_state)
         tmp_store.add_paper(second_state)
@@ -161,8 +145,8 @@ class TestListAndRemove:
     def test_list_papers(
         self,
         tmp_store: PaperVectorStore,
-        sample_state: _TestPaperState,
-        second_state: _TestPaperState,
+        sample_state: dict,
+        second_state: dict,
     ) -> None:
         tmp_store.add_paper(sample_state)
         tmp_store.add_paper(second_state)
@@ -171,10 +155,10 @@ class TestListAndRemove:
         titles = {p["title"] for p in papers}
         assert "Nanoscale Surface Charge Visualization of Human Hair" in titles
 
-    def test_remove_paper(self, tmp_store: PaperVectorStore, sample_state: _TestPaperState) -> None:
+    def test_remove_paper(self, tmp_store: PaperVectorStore, sample_state: dict) -> None:
         tmp_store.add_paper(sample_state)
         assert tmp_store.count() == 1
-        tmp_store.remove_paper(sample_state.metadata.doi)
+        tmp_store.remove_paper(sample_state["metadata"]["doi"])
         assert tmp_store.count() == 0
 
     def test_remove_nonexistent(self, tmp_store: PaperVectorStore) -> None:
@@ -206,11 +190,12 @@ class TestTitleToId:
 class TestPaperWithoutDoi:
     def test_add_paper_without_doi(self, tmp_store: PaperVectorStore) -> None:
         """Papers without DOI should use title hash as ID."""
-        state = _TestPaperState()
-        state.metadata = PaperMetadata(
-            title="A Paper Without DOI",
-            authors=["Author"],
-        )
-        state.summary = "Some summary"
+        state = {
+            "metadata": {
+                "title": "A Paper Without DOI",
+                "authors": ["Author"],
+            },
+            "summary": "Some summary",
+        }
         tmp_store.add_paper(state)
         assert tmp_store.count() == 1

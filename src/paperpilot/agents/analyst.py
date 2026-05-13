@@ -88,10 +88,17 @@ def _build_prompt_from_dict(
     full_text: str,
     language: str,
 ) -> str:
-    """Build the analysis prompt from metadata dict and text.
+    """Build the analysis prompt from metadata dict and full text.
 
-    Same logic as _build_prompt but works with plain dicts instead of
-    PaperState dataclass (for LangGraph TypedDict compatibility).
+    The prompt has three parts:
+    1. System instruction — role, output format, language rules
+    2. Paper metadata — title, authors, journal (gives context)
+    3. Paper full text — truncated if too long
+
+    Why XML output format?
+    - Claude is trained on XML and handles it very reliably
+    - Easy to parse with regex (no JSON escaping issues)
+    - Allows natural long-form text within each tag
     """
     text = _truncate_text(full_text, MAX_TEXT_CHARS)
 
@@ -283,161 +290,6 @@ def _create_llm():
             f"Unknown LLM provider: '{provider}'. Supported: 'anthropic', 'openai', 'deepseek'"
         )
 
-
-# ---------------------------------------------------------------------------
-# Prompt construction
-# ---------------------------------------------------------------------------
-def _build_prompt(state: PaperState) -> str:
-    """Build the analysis prompt from paper state.
-
-    The prompt has three parts:
-    1. System instruction — role, output format, language rules
-    2. Paper metadata — title, authors, journal (gives context)
-    3. Paper full text — truncated if too long
-
-    Why XML output format?
-    - Claude is trained on XML and handles it very reliably
-    - Easy to parse with regex (no JSON escaping issues)
-    - Allows natural long-form text within each tag
-    """
-    # Truncate text if too long (keep beginning + end for intro/conclusion)
-    text = _truncate_text(state.full_text, MAX_TEXT_CHARS)
-
-    # Build metadata context
-    meta_lines = [f"Title: {state.metadata.title}"]
-    if state.metadata.authors:
-        meta_lines.append(f"Authors: {', '.join(state.metadata.authors)}")
-    if state.metadata.journal:
-        meta_lines.append(f"Journal: {state.metadata.journal}")
-    if state.metadata.year:
-        meta_lines.append(f"Year: {state.metadata.year}")
-    if state.metadata.doi:
-        meta_lines.append(f"DOI: {state.metadata.doi}")
-    metadata_block = "\n".join(meta_lines)
-
-    # Language instruction
-    if state.language == "zh":
-        lang_instruction = (
-            "请用中文输出分析结果。专业术语保留英文原文，"
-            "首次出现时在括号中给出中文翻译，例如：SICM（扫描离子电导显微镜）。"
-            "语言风格要通俗易懂，像在给同领域的研究生讲解。"
-        )
-    else:
-        lang_instruction = (
-            "Write the analysis in English. "
-            "Keep technical terms precise and explain them briefly on first use."
-        )
-
-    prompt = f"""You are a scientific paper analysis assistant. Your job is to read a research paper and produce a structured analysis.
-
-{lang_instruction}
-
-<paper_metadata>
-{metadata_block}
-</paper_metadata>
-
-<paper_text>
-{text}
-</paper_text>
-
-Please analyze this paper and provide the following sections. Each section MUST be wrapped in the corresponding XML tag. Write substantive content for each section — not just one sentence.
-
-<output_format>
-<summary>
-A concise paragraph (3-5 sentences) summarizing the paper's core contribution, methodology, and key findings. This should give a reader a complete picture without reading the full paper.
-</summary>
-
-<abstract_zh>
-{"将论文摘要翻译成中文。如果论文没有明确的摘要段落，根据内容撰写一段中文摘要。" if state.language == "zh" else "Translate or rewrite the abstract in the target language."}
-</abstract_zh>
-
-<framework>
-Describe the overall research framework/approach. What is the logical flow from problem to solution? Use a structured outline if helpful.
-</framework>
-
-<research_question>
-What specific question(s) or problem(s) does this paper address? Why is it important? What gap in existing knowledge does it fill?
-</research_question>
-
-<methods>
-Describe the methodology in detail. Include experimental setup, techniques used, data analysis approaches. For experimental papers, mention key instruments and protocols.
-</methods>
-
-<parameters>
-If this is an experimental paper, list key experimental parameters as key-value pairs, one per line, in the format "parameter_name: value". For example:
-Probe aperture: ~100 nm
-Electrolyte: 50 mM KCl
-If no specific parameters are mentioned, write "N/A".
-</parameters>
-
-<results>
-Summarize the key findings. Use numbered points for clarity. Include quantitative data where available.
-</results>
-
-<innovations>
-What are the novel contributions of this paper? What makes it different from prior work?
-</innovations>
-
-<limitations>
-What are the limitations of this study? What could be improved? What questions remain unanswered?
-</limitations>
-
-<key_references>
-List 3-8 of the most important references cited in this paper that a reader should follow up on. For each, provide the full citation as it appears in the paper. Focus on:
-- Foundational methods papers
-- Direct predecessors to this work
-- Key competing approaches
-</key_references>
-</output_format>
-
-IMPORTANT: Output ONLY the XML tags with content. Do not add any text before or after the tags."""
-
-    return prompt
-
-
-# ---------------------------------------------------------------------------
-# Response parsing
-# ---------------------------------------------------------------------------
-def _parse_response(content: str, state: PaperState) -> PaperState:
-    """Parse XML-tagged LLM response into PaperState fields.
-
-    Uses regex to extract content between XML tags. This is robust
-    because:
-    - Each field has a unique tag name (no ambiguity)
-    - Content can span multiple lines (re.DOTALL flag)
-    - Missing tags are handled gracefully (field stays empty)
-
-    The 'parameters' field gets special treatment: it's parsed from
-    "key: value" lines into a dict.
-    """
-    # Simple fields: extract text between tags
-    field_map = {
-        "summary": "summary",
-        "abstract_zh": "abstract_zh",
-        "framework": "framework",
-        "research_question": "research_question",
-        "methods": "methods",
-        "results": "results",
-        "innovations": "innovations",
-        "limitations": "limitations",
-    }
-
-    for tag, attr in field_map.items():
-        value = _extract_tag(content, tag)
-        if value:
-            setattr(state, attr, value)
-
-    # Special: parameters → dict
-    params_text = _extract_tag(content, "parameters")
-    if params_text and params_text.strip().upper() != "N/A":
-        state.parameters = _parse_parameters(params_text)
-
-    # Special: key_references → list
-    refs_text = _extract_tag(content, "key_references")
-    if refs_text:
-        state.key_references = _parse_references(refs_text)
-
-    return state
 
 
 def _extract_tag(content: str, tag: str) -> str:

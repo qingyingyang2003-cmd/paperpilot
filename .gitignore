@@ -14,6 +14,10 @@ wheels/
 notes/
 papers/
 
+# Large binary files — don't bloat the repo
+*.pdf
+examples/output/figures/
+
 # Environment / secrets
 .env
 *.key

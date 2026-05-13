@@ -2,7 +2,7 @@
 
 > 🧪 **丢一篇 PDF 进去，拿一份结构化笔记出来。** 让 AI 替你读论文——你负责思考，它负责整理。
 
-[![CI](https://github.com/qingyingyang2003-cmd/paperpilot/actions/workflows/ci.yml/badge.svg)](https://github.com/qingyingyang2003-cmd/paperpilot/actions) [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![CI](https://github.com/qingyingyang2003-cmd/paperpilot/actions/workflows/ci.yml/badge.svg)](https://github.com/qingyingyang2003-cmd/paperpilot/actions) [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 读论文最痛苦的不是读不懂，是读完记不住。PaperPilot 帮你把每篇论文变成一份**可搜索、可对比、格式统一**的笔记——总结、方法、结果、创新点、局限性，全部结构化。读过的论文自动进入本地知识库，下次搜关键词就能找到。
 

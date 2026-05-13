@@ -7,13 +7,15 @@ license = "MIT"
 authors = [
     { name = "qingyingyang200-cmd", email = "qingyingyang2003@gmail.com" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 keywords = ["ai", "agent", "paper", "research", "scientific", "langgraph"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering",
     "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [

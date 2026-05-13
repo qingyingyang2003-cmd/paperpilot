@@ -1,8 +1,8 @@
 """Compare Agent — LLM-powered multi-paper comparison.
 
-Takes multiple analyzed PaperState objects and produces a structured
-comparison: a summary table with abbreviated fields for each paper,
-plus a comprehensive analysis discussing similarities, differences,
+Takes multiple analyzed paper state dicts (from LangGraph) and produces
+a structured comparison: a summary table with abbreviated fields for each
+paper, plus a comprehensive analysis discussing similarities, differences,
 and research trends.
 
 Design decisions:
@@ -16,30 +16,22 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from paperpilot.agents.analyst import _create_llm
 from paperpilot.config import config
 
-if TYPE_CHECKING:
-    from paperpilot.orchestrator import PaperState
-
 
 def compare_papers(
-    states: list["PaperState"],
+    states: list[dict[str, Any]],
     language: str = "zh",
 ) -> dict[str, Any]:
     """Compare multiple papers using LLM.
 
     This is the main entry point, called by orchestrator.run_compare_workflow().
 
-    Flow:
-        1. Build a prompt containing each paper's key fields
-        2. Ask LLM to generate abbreviated versions + comprehensive analysis
-        3. Parse XML response into a dict matching comparison.md.j2 template
-
     Args:
-        states: List of PaperState objects (already analyzed by Analyst Agent).
+        states: List of state dicts from LangGraph (already analyzed).
         language: Output language ("zh" or "en").
 
     Returns:
@@ -73,28 +65,35 @@ def compare_papers(
     return result
 
 
-def compare_papers_fallback(states: list["PaperState"]) -> dict[str, Any]:
+def compare_papers_fallback(states: list[dict[str, Any]]) -> dict[str, Any]:
     """Generate a comparison using only metadata (no LLM).
 
     Used when LLM is unavailable. Extracts raw fields from each
-    PaperState without abbreviation or analysis.
+    state dict without abbreviation or analysis.
     """
     papers = []
     for state in states:
-        first_author = state.metadata.authors[0].split()[-1] if state.metadata.authors else "Unknown"
-        short_title = f"{first_author} {state.metadata.year}" if state.metadata.year else first_author
+        metadata = state.get("metadata", {})
+        authors = metadata.get("authors", [])
+        first_author = authors[0].split()[-1] if authors else "Unknown"
+        year = metadata.get("year", "")
+        short_title = f"{first_author} {year}" if year else first_author
+
+        methods = state.get("methods", "")
+        results = state.get("results", "")
+        innovations = state.get("innovations", "")
+        limitations = state.get("limitations", "")
 
         papers.append({
             "short_title": short_title,
-            "year": state.metadata.year or "N/A",
-            "research_question": state.research_question or "（需要 LLM 分析）",
-            "methods_brief": state.methods[:150] + "..." if len(state.methods) > 150 else state.methods or "N/A",
-            "results_brief": state.results[:150] + "..." if len(state.results) > 150 else state.results or "N/A",
-            "innovations_brief": state.innovations[:150] + "..." if len(state.innovations) > 150 else state.innovations or "N/A",
-            "limitations_brief": state.limitations[:150] + "..." if len(state.limitations) > 150 else state.limitations or "N/A",
+            "year": year or "N/A",
+            "research_question": state.get("research_question") or "（需要 LLM 分析）",
+            "methods_brief": methods[:150] + "..." if len(methods) > 150 else methods or "N/A",
+            "results_brief": results[:150] + "..." if len(results) > 150 else results or "N/A",
+            "innovations_brief": innovations[:150] + "..." if len(innovations) > 150 else innovations or "N/A",
+            "limitations_brief": limitations[:150] + "..." if len(limitations) > 150 else limitations or "N/A",
         })
 
-    # Derive topic from common words in titles
     topic = _derive_topic(states)
 
     return {
@@ -108,13 +107,8 @@ def compare_papers_fallback(states: list["PaperState"]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Prompt construction
 # ---------------------------------------------------------------------------
-def _build_compare_prompt(states: list["PaperState"], language: str) -> str:
-    """Build the comparison prompt from multiple PaperState objects.
-
-    Includes each paper's key fields and asks the LLM to:
-    1. Generate abbreviated versions suitable for table cells
-    2. Write a comprehensive analysis comparing all papers
-    """
+def _build_compare_prompt(states: list[dict[str, Any]], language: str) -> str:
+    """Build the comparison prompt from multiple state dicts."""
     if language == "zh":
         lang_instruction = (
             "请用中文输出。专业术语保留英文原文，"
@@ -123,24 +117,24 @@ def _build_compare_prompt(states: list["PaperState"], language: str) -> str:
     else:
         lang_instruction = "Write the comparison in English."
 
-    # Build paper blocks
     paper_blocks = []
     for i, state in enumerate(states, 1):
+        metadata = state.get("metadata", {})
         block = f"""<paper_input index="{i}">
-Title: {state.metadata.title}
-Authors: {', '.join(state.metadata.authors)}
-Year: {state.metadata.year}
-Journal: {state.metadata.journal}
+Title: {metadata.get('title', '')}
+Authors: {', '.join(metadata.get('authors', []))}
+Year: {metadata.get('year', '')}
+Journal: {metadata.get('journal', '')}
 
-Research Question: {state.research_question}
+Research Question: {state.get('research_question', '')}
 
-Methods: {state.methods}
+Methods: {state.get('methods', '')}
 
-Results: {state.results}
+Results: {state.get('results', '')}
 
-Innovations: {state.innovations}
+Innovations: {state.get('innovations', '')}
 
-Limitations: {state.limitations}
+Limitations: {state.get('limitations', '')}
 </paper_input>"""
         paper_blocks.append(block)
 
@@ -194,16 +188,11 @@ def _generate_paper_output_template(n: int) -> str:
 # ---------------------------------------------------------------------------
 def _parse_compare_response(
     content: str,
-    states: list["PaperState"],
+    states: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Parse XML-tagged comparison response into a dict.
-
-    Extracts each <paper index="N"> block and the <analysis> block.
-    Returns a dict matching the comparison.md.j2 template variables.
-    """
+    """Parse XML-tagged comparison response into a dict."""
     papers: list[dict[str, str]] = []
 
-    # Extract each paper block
     paper_pattern = r'<paper\s+index="(\d+)">\s*(.*?)\s*</paper>'
     paper_matches = re.findall(paper_pattern, content, re.DOTALL)
 
@@ -223,21 +212,21 @@ def _parse_compare_response(
     if len(papers) < len(states):
         for i in range(len(papers), len(states)):
             state = states[i]
-            first_author = state.metadata.authors[0].split()[-1] if state.metadata.authors else "Unknown"
+            metadata = state.get("metadata", {})
+            authors = metadata.get("authors", [])
+            first_author = authors[0].split()[-1] if authors else "Unknown"
+            year = metadata.get("year", "")
             papers.append({
-                "short_title": f"{first_author} {state.metadata.year}",
-                "year": state.metadata.year or "N/A",
-                "research_question": state.research_question[:100] if state.research_question else "N/A",
-                "methods_brief": state.methods[:100] if state.methods else "N/A",
-                "results_brief": state.results[:100] if state.results else "N/A",
-                "innovations_brief": state.innovations[:100] if state.innovations else "N/A",
-                "limitations_brief": state.limitations[:100] if state.limitations else "N/A",
+                "short_title": f"{first_author} {year}",
+                "year": year or "N/A",
+                "research_question": state.get("research_question", "N/A")[:100],
+                "methods_brief": state.get("methods", "N/A")[:100],
+                "results_brief": state.get("results", "N/A")[:100],
+                "innovations_brief": state.get("innovations", "N/A")[:100],
+                "limitations_brief": state.get("limitations", "N/A")[:100],
             })
 
-    # Extract analysis
     analysis = _extract_field(content, "analysis")
-
-    # Derive topic
     topic = _derive_topic(states)
 
     return {
@@ -254,17 +243,14 @@ def _extract_field(content: str, tag: str) -> str:
     return match.group(1).strip() if match else ""
 
 
-def _derive_topic(states: list["PaperState"]) -> str:
-    """Derive a comparison topic from paper titles.
-
-    Takes the first paper's title as the topic base, truncated.
-    """
+def _derive_topic(states: list[dict[str, Any]]) -> str:
+    """Derive a comparison topic from paper titles."""
     if not states:
         return "Paper Comparison"
-    titles = [s.metadata.title for s in states if s.metadata.title]
+    titles = [s.get("metadata", {}).get("title", "") for s in states]
+    titles = [t for t in titles if t]
     if not titles:
         return "Paper Comparison"
-    # Use first title, truncated
     first = titles[0]
     if len(first) > 60:
         first = first[:57] + "..."

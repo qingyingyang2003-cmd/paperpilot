@@ -6,51 +6,47 @@ Tests three layers:
 3. Error handling — missing tags, malformed input, graceful degradation
 """
 
-from dataclasses import field
 from pathlib import Path
 
 import pytest
 
 from paperpilot.agents.analyst import (
-    _build_prompt,
+    _build_prompt_from_dict,
     _extract_tag,
     _parse_parameters,
     _parse_references,
-    _parse_response,
+    _parse_response_to_dict,
     _truncate_text,
 )
-from paperpilot.orchestrator import PaperState
-from paperpilot.tools.pdf_tools import PaperMetadata
 
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 @pytest.fixture
-def sample_state() -> PaperState:
-    """A PaperState with realistic metadata and text for testing."""
-    state = PaperState(
-        pdf_path=Path("test.pdf"),
-        language="zh",
-    )
-    state.metadata = PaperMetadata(
-        title="Nanoscale Surface Charge Visualization of Human Hair",
-        authors=["Faduma M. Maddar", "David Perry", "Patrick R. Unwin"],
-        journal="Analytical Chemistry",
-        year="2019",
-        doi="10.1021/acs.analchem.8b05977",
-        pages=8,
-        abstract="We present a method for nanoscale surface charge mapping...",
-    )
-    state.full_text = (
+def sample_metadata() -> dict:
+    """Realistic paper metadata dict for testing."""
+    return {
+        "title": "Nanoscale Surface Charge Visualization of Human Hair",
+        "authors": ["Faduma M. Maddar", "David Perry", "Patrick R. Unwin"],
+        "journal": "Analytical Chemistry",
+        "year": "2019",
+        "doi": "10.1021/acs.analchem.8b05977",
+        "pages": 8,
+        "abstract": "We present a method for nanoscale surface charge mapping...",
+    }
+
+
+@pytest.fixture
+def sample_full_text() -> str:
+    """Realistic paper text for testing."""
+    return (
         "Introduction: Scanning ion conductance microscopy (SICM) is a "
         "powerful technique for imaging surface topography and charge. "
         "Methods: We used hopping mode SICM with 220 nm aperture probes. "
         "Results: The surface charge density of untreated hair was -15 mC/m². "
         "Conclusion: SICM enables nanoscale charge visualization of hair."
     )
-    state.references = ["[1] Perry et al., JACS 2016", "[2] Kang et al., ACS Nano 2017"]
-    return state
 
 
 @pytest.fixture
@@ -118,33 +114,31 @@ Potential pulse: +50 mV to -400 mV, 50 ms
 # Prompt construction tests
 # ---------------------------------------------------------------------------
 class TestBuildPrompt:
-    def test_contains_paper_text(self, sample_state: PaperState) -> None:
-        prompt = _build_prompt(sample_state)
+    def test_contains_paper_text(self, sample_metadata: dict, sample_full_text: str) -> None:
+        prompt = _build_prompt_from_dict(sample_metadata, sample_full_text, "zh")
         assert "hopping mode SICM" in prompt
         assert "220 nm aperture" in prompt
 
-    def test_contains_metadata(self, sample_state: PaperState) -> None:
-        prompt = _build_prompt(sample_state)
+    def test_contains_metadata(self, sample_metadata: dict, sample_full_text: str) -> None:
+        prompt = _build_prompt_from_dict(sample_metadata, sample_full_text, "zh")
         assert "Nanoscale Surface Charge" in prompt
         assert "Analytical Chemistry" in prompt
         assert "2019" in prompt
 
-    def test_contains_xml_tags(self, sample_state: PaperState) -> None:
-        prompt = _build_prompt(sample_state)
+    def test_contains_xml_tags(self, sample_metadata: dict, sample_full_text: str) -> None:
+        prompt = _build_prompt_from_dict(sample_metadata, sample_full_text, "zh")
         assert "<summary>" in prompt
         assert "<methods>" in prompt
         assert "<parameters>" in prompt
         assert "<key_references>" in prompt
 
-    def test_chinese_instructions_for_zh(self, sample_state: PaperState) -> None:
-        sample_state.language = "zh"
-        prompt = _build_prompt(sample_state)
+    def test_chinese_instructions_for_zh(self, sample_metadata: dict, sample_full_text: str) -> None:
+        prompt = _build_prompt_from_dict(sample_metadata, sample_full_text, "zh")
         assert "中文" in prompt
         assert "通俗易懂" in prompt
 
-    def test_english_instructions_for_en(self, sample_state: PaperState) -> None:
-        sample_state.language = "en"
-        prompt = _build_prompt(sample_state)
+    def test_english_instructions_for_en(self, sample_metadata: dict, sample_full_text: str) -> None:
+        prompt = _build_prompt_from_dict(sample_metadata, sample_full_text, "en")
         assert "English" in prompt
 
 
@@ -175,50 +169,43 @@ class TestExtractTag:
 # Response parsing tests
 # ---------------------------------------------------------------------------
 class TestParseResponse:
-    def test_all_fields_populated(
-        self, sample_state: PaperState, sample_llm_response: str
-    ) -> None:
-        state = _parse_response(sample_llm_response, sample_state)
-        assert "SICM" in state.summary
-        assert "纳米" in state.abstract_zh
-        assert "FEM" in state.framework
-        assert "液相" in state.research_question
-        assert "hopping mode" in state.methods
-        assert "-15 mC/m²" in state.results
-        assert "首次" in state.innovations
-        assert "样本" in state.limitations
+    def test_all_fields_populated(self, sample_llm_response: str) -> None:
+        result = _parse_response_to_dict(sample_llm_response)
+        assert "SICM" in result["summary"]
+        assert "纳米" in result["abstract_zh"]
+        assert "FEM" in result["framework"]
+        assert "液相" in result["research_question"]
+        assert "hopping mode" in result["methods"]
+        assert "-15 mC/m²" in result["results"]
+        assert "首次" in result["innovations"]
+        assert "样本" in result["limitations"]
 
-    def test_parameters_parsed_as_dict(
-        self, sample_state: PaperState, sample_llm_response: str
-    ) -> None:
-        state = _parse_response(sample_llm_response, sample_state)
-        assert isinstance(state.parameters, dict)
-        assert "Probe aperture" in state.parameters
-        assert state.parameters["Probe aperture"] == "~220 nm"
-        assert state.parameters["Electrolyte"] == "50 mM KCl"
+    def test_parameters_parsed_as_dict(self, sample_llm_response: str) -> None:
+        result = _parse_response_to_dict(sample_llm_response)
+        assert isinstance(result["parameters"], dict)
+        assert "Probe aperture" in result["parameters"]
+        assert result["parameters"]["Probe aperture"] == "~220 nm"
+        assert result["parameters"]["Electrolyte"] == "50 mM KCl"
 
-    def test_references_parsed_as_list(
-        self, sample_state: PaperState, sample_llm_response: str
-    ) -> None:
-        state = _parse_response(sample_llm_response, sample_state)
-        assert isinstance(state.key_references, list)
-        assert len(state.key_references) == 3
-        assert any("Perry" in ref for ref in state.key_references)
+    def test_references_parsed_as_list(self, sample_llm_response: str) -> None:
+        result = _parse_response_to_dict(sample_llm_response)
+        assert isinstance(result["key_references"], list)
+        assert len(result["key_references"]) == 3
+        assert any("Perry" in ref for ref in result["key_references"])
 
-    def test_partial_response_handled(self, sample_state: PaperState) -> None:
-        """If LLM only returns some tags, other fields stay at defaults."""
+    def test_partial_response_handled(self) -> None:
+        """If LLM only returns some tags, only those keys are in the dict."""
         partial = "<summary>Just a summary.</summary><methods>Some methods.</methods>"
-        state = _parse_response(partial, sample_state)
-        assert state.summary == "Just a summary."
-        assert state.methods == "Some methods."
-        assert state.framework == ""  # Not in response, stays default
-        assert state.results == ""
+        result = _parse_response_to_dict(partial)
+        assert result["summary"] == "Just a summary."
+        assert result["methods"] == "Some methods."
+        assert "framework" not in result
+        assert "results" not in result
 
-    def test_empty_response_handled(self, sample_state: PaperState) -> None:
-        """Empty response doesn't crash — fields stay at defaults."""
-        state = _parse_response("", sample_state)
-        assert state.summary == ""
-        assert state.methods == ""
+    def test_empty_response_handled(self) -> None:
+        """Empty response returns empty dict."""
+        result = _parse_response_to_dict("")
+        assert result == {}
 
 
 # ---------------------------------------------------------------------------

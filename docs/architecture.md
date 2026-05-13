@@ -1,4 +1,17 @@
-# PaperPilot 架构设计与搭建文档
+aperpilot/tools/template_tools.py
+/mnt/d/paperpilot/tests/__init__.py
+/mnt/d/paperpilot/tests/test_analyst.py
+/mnt/d/paperpilot/tests/test_compare.py
+/mnt/d/paperpilot/tests/test_pdf_tools.py
+/mnt/d/paperpilot/tests/test_sources.py
+/mnt/d/paperpilot/tests/test_template_tools.py
+/mnt/d/paperpilot/tests/test_vector_store.py
+
+● Read(/mnt/d/paperpilot/README.md)
+Read 320 lines
+
+● Read(/mnt/d/paperpilot/pyproject.toml)
+Read 43 lines# PaperPilot 架构设计与搭建文档
 
 ## 项目定位
 

@@ -14,7 +14,7 @@ Design decisions:
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from paperpilot.config import config
 
@@ -27,26 +27,26 @@ MAX_TEXT_CHARS = 120_000
 
 
 # ---------------------------------------------------------------------------
-# Public API — called by orchestrator._run_analyst()
+# Public API — called by orchestrator graph nodes
 # ---------------------------------------------------------------------------
-def analyze_paper(state: "PaperState") -> "PaperState":
-    """Analyze a paper using LLM and fill structured fields in state.
+def analyze_paper_from_state(state: "PaperState") -> dict[str, Any]:
+    """Analyze a paper using LLM, returning a partial state update dict.
 
-    This is the main entry point. The orchestrator calls this function
-    after the Parser Agent has extracted text and metadata.
+    This is the main entry point called by the orchestrator's analyze_node.
+    Works with the LangGraph TypedDict state pattern: receives full state,
+    returns only the keys that changed.
 
     Flow:
         1. Create LLM client based on config (Anthropic or OpenAI)
         2. Build a prompt with paper text + analysis instructions
         3. Send to LLM, get back XML-tagged response
-        4. Parse XML tags into individual fields
-        5. Write results back to PaperState
+        4. Parse XML tags into a dict of analysis fields
 
     Args:
-        state: PaperState with full_text and metadata already filled.
+        state: PaperState TypedDict with full_text and metadata filled.
 
     Returns:
-        The same PaperState with analysis fields populated.
+        Dict with analysis field updates (summary, methods, results, etc.)
     """
     from rich.console import Console
 
@@ -60,10 +60,13 @@ def analyze_paper(state: "PaperState") -> "PaperState":
     )
 
     # Step 2: Build prompt
-    prompt = _build_prompt(state)
+    metadata = state.get("metadata", {})
+    full_text = state.get("full_text", "")
+    language = state.get("language", "zh")
+    prompt = _build_prompt_from_dict(metadata, full_text, language)
     console.print(
         f"  [dim]Prompt length: {len(prompt):,} chars "
-        f"(paper text: {len(state.full_text):,} chars)[/dim]"
+        f"(paper text: {len(full_text):,} chars)[/dim]"
     )
 
     # Step 3: Call LLM
@@ -74,11 +77,152 @@ def analyze_paper(state: "PaperState") -> "PaperState":
     content = response.content if hasattr(response, "content") else str(response)
     console.print(f"  [dim]Response length: {len(content):,} chars[/dim]")
 
-    # Step 4: Parse response into state fields
-    state = _parse_response(content, state)
+    # Step 4: Parse response into update dict
+    updates = _parse_response_to_dict(content)
 
     console.print("  [green]Analysis complete[/green]")
-    return state
+    return updates
+
+
+# ---------------------------------------------------------------------------
+# Prompt construction (dict-based, for LangGraph state)
+# ---------------------------------------------------------------------------
+def _build_prompt_from_dict(
+    metadata: dict[str, Any],
+    full_text: str,
+    language: str,
+) -> str:
+    """Build the analysis prompt from metadata dict and text.
+
+    Same logic as _build_prompt but works with plain dicts instead of
+    PaperState dataclass (for LangGraph TypedDict compatibility).
+    """
+    text = _truncate_text(full_text, MAX_TEXT_CHARS)
+
+    meta_lines = [f"Title: {metadata.get('title', '')}"]
+    if metadata.get("authors"):
+        meta_lines.append(f"Authors: {', '.join(metadata['authors'])}")
+    if metadata.get("journal"):
+        meta_lines.append(f"Journal: {metadata['journal']}")
+    if metadata.get("year"):
+        meta_lines.append(f"Year: {metadata['year']}")
+    if metadata.get("doi"):
+        meta_lines.append(f"DOI: {metadata['doi']}")
+    metadata_block = "\n".join(meta_lines)
+
+    if language == "zh":
+        lang_instruction = (
+            "请用中文输出分析结果。专业术语保留英文原文，"
+            "首次出现时在括号中给出中文翻译，例如：SICM（扫描离子电导显微镜）。"
+            "语言风格要通俗易懂，像在给同领域的研究生讲解。"
+        )
+    else:
+        lang_instruction = (
+            "Write the analysis in English. "
+            "Keep technical terms precise and explain them briefly on first use."
+        )
+
+    prompt = f"""You are a scientific paper analysis assistant. Your job is to read a research paper and produce a structured analysis.
+
+{lang_instruction}
+
+<paper_metadata>
+{metadata_block}
+</paper_metadata>
+
+<paper_text>
+{text}
+</paper_text>
+
+Please analyze this paper and provide the following sections. Each section MUST be wrapped in the corresponding XML tag. Write substantive content for each section — not just one sentence.
+
+<output_format>
+<summary>
+A concise paragraph (3-5 sentences) summarizing the paper's core contribution, methodology, and key findings. This should give a reader a complete picture without reading the full paper.
+</summary>
+
+<abstract_zh>
+{"将论文摘要翻译成中文。如果论文没有明确的摘要段落，根据内容撰写一段中文摘要。" if language == "zh" else "Translate or rewrite the abstract in the target language."}
+</abstract_zh>
+
+<framework>
+Describe the overall research framework/approach. What is the logical flow from problem to solution? Use a structured outline if helpful.
+</framework>
+
+<research_question>
+What specific question(s) or problem(s) does this paper address? Why is it important? What gap in existing knowledge does it fill?
+</research_question>
+
+<methods>
+Describe the methodology in detail. Include experimental setup, techniques used, data analysis approaches. For experimental papers, mention key instruments and protocols.
+</methods>
+
+<parameters>
+If this is an experimental paper, list key experimental parameters as key-value pairs, one per line, in the format "parameter_name: value". For example:
+Probe aperture: ~100 nm
+Electrolyte: 50 mM KCl
+If no specific parameters are mentioned, write "N/A".
+</parameters>
+
+<results>
+Summarize the key findings. Use numbered points for clarity. Include quantitative data where available.
+</results>
+
+<innovations>
+What are the novel contributions of this paper? What makes it different from prior work?
+</innovations>
+
+<limitations>
+What are the limitations of this study? What could be improved? What questions remain unanswered?
+</limitations>
+
+<key_references>
+List 3-8 of the most important references cited in this paper that a reader should follow up on. For each, provide the full citation as it appears in the paper. Focus on:
+- Foundational methods papers
+- Direct predecessors to this work
+- Key competing approaches
+</key_references>
+</output_format>
+
+IMPORTANT: Output ONLY the XML tags with content. Do not add any text before or after the tags."""
+
+    return prompt
+
+
+def _parse_response_to_dict(content: str) -> dict[str, Any]:
+    """Parse XML-tagged LLM response into a dict of state updates.
+
+    Returns a dict suitable for merging into PaperState TypedDict.
+    """
+    updates: dict[str, Any] = {}
+
+    field_map = {
+        "summary": "summary",
+        "abstract_zh": "abstract_zh",
+        "framework": "framework",
+        "research_question": "research_question",
+        "methods": "methods",
+        "results": "results",
+        "innovations": "innovations",
+        "limitations": "limitations",
+    }
+
+    for tag, key in field_map.items():
+        value = _extract_tag(content, tag)
+        if value:
+            updates[key] = value
+
+    # Special: parameters → dict
+    params_text = _extract_tag(content, "parameters")
+    if params_text and params_text.strip().upper() != "N/A":
+        updates["parameters"] = _parse_parameters(params_text)
+
+    # Special: key_references → list
+    refs_text = _extract_tag(content, "key_references")
+    if refs_text:
+        updates["key_references"] = _parse_references(refs_text)
+
+    return updates
 
 
 # ---------------------------------------------------------------------------

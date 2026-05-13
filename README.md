@@ -39,7 +39,7 @@ Done! Note saved to: ./notes/nanoscale-surface-charge-hair.md
 ┌─────────────────────────────┐
 │        CLI Layer            │  Typer + Rich
 ├─────────────────────────────┤
-│     Orchestrator Layer      │  Workflow state machine
+│     Orchestrator Layer      │  LangGraph StateGraph
 ├─────────────────────────────┤
 │       Agent Layer           │  Parser / Analyst / Compare / Search
 ├─────────────────────────────┤
@@ -47,7 +47,7 @@ Done! Note saved to: ./notes/nanoscale-surface-charge-hair.md
 └─────────────────────────────┘
 ```
 
-Four layers, each depends only on the layer below. Tools are deterministic functions (no LLM). Agents add intelligence on top. The orchestrator wires them together via a shared `PaperState` object.
+Four layers, each depends only on the layer below. Tools are deterministic functions (no LLM). Agents add intelligence on top. The orchestrator uses a LangGraph `StateGraph` with conditional routing — nodes receive a shared `PaperState` TypedDict and return partial updates.
 
 See [docs/architecture.md](docs/architecture.md) for the full design document.
 
@@ -161,27 +161,22 @@ See [examples/](examples/) for full sample outputs.
 paperpilot read paper.pdf
         │
         ▼
-   ┌─────────┐
-   │ Parser  │  Extract text, metadata, figures, references (PyMuPDF)
-   │ Agent   │  Deterministic — no LLM needed
-   └────┬────┘
+┌─────────────────────────────────────────────────┐
+│  LangGraph StateGraph (compiled, reusable)      │
+│                                                 │
+│  START → [parse] → ─┬─ [analyze] ──┐           │
+│                      │              ├→ [render]  │
+│                      └─ [skip] ─────┘     │     │
+│                                       [index]   │
+│                                           │     │
+│                                          END    │
+└─────────────────────────────────────────────────┘
         │
         ▼
-   ┌─────────┐
-   │ Analyst │  Send text to Claude/GPT with structured prompt
-   │ Agent   │  Get back: summary, methods, results, innovations...
-   └────┬────┘
-        │
-        ▼
-   ┌─────────┐
-   │ Render  │  Jinja2 template + analysis data → Markdown note
-   └────┬────┘
-        │
-        ▼
-   ┌─────────┐
-   │ Index   │  Auto-index into ChromaDB for future semantic search
-   └─────────┘
+   ./notes/paper-title.md
 ```
+
+The conditional edge after `parse` checks if an LLM API key is configured. If yes, route to `analyze` (full LLM analysis). If no, route to `skip_analyze` (graceful degradation with metadata-only notes).
 
 ### The Compare Pipeline
 
@@ -242,7 +237,7 @@ paperpilot search "SICM surface charge"
 |-----------|--------|-----|
 | Vector store | ChromaDB | Local, zero-config, built-in embeddings (all-MiniLM-L6-v2) |
 | LLM | Claude (Anthropic) + OpenAI | Claude's 200K context fits long papers; OpenAI as alternative |
-| LLM framework | LangChain + LangGraph | State machine orchestration for multi-agent workflows |
+| LLM framework | LangGraph + LangChain | StateGraph for workflow orchestration with conditional routing; LangChain for LLM abstraction |
 | PDF parsing | PyMuPDF (fitz) | Fast C-based extraction: text, images, metadata |
 | CLI | Typer + Rich | Type-annotated CLI with colored terminal output |
 | Templates | Jinja2 | Mature, flexible, same engine as Flask/Django |
@@ -260,7 +255,7 @@ paperpilot/
 ├── src/paperpilot/
 │   ├── cli.py              # CLI commands: read, fetch, browse, search, compare
 │   ├── config.py           # Configuration (API keys, models, paths)
-│   ├── orchestrator.py     # Workflow state machine + PaperState
+│   ├── orchestrator.py     # LangGraph StateGraph workflows + PaperState
 │   ├── agents/
 │   │   ├── analyst.py      # LLM-powered paper analysis
 │   │   └── compare.py      # LLM-powered multi-paper comparison

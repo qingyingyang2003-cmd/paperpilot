@@ -291,7 +291,6 @@ def _create_llm():
         )
 
 
-
 def _extract_tag(content: str, tag: str) -> str:
     """Extract text content between <tag> and </tag>.
 

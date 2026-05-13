@@ -21,12 +21,37 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
+from paperpilot import __version__
+
+
+def _version_callback(value: bool) -> None:
+    if value:
+        print(f"paperpilot {__version__}")
+        raise typer.Exit()
+
+
 app = typer.Typer(
     name="paperpilot",
     help="AI-powered scientific paper analysis agent.",
     no_args_is_help=True,
 )
 console = Console()
+
+
+@app.callback()
+def main(
+    version: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            "-V",
+            help="Show version and exit.",
+            callback=_version_callback,
+            is_eager=True,
+        ),
+    ] = False,
+) -> None:
+    """PaperPilot — read, summarize, compare, and search scientific papers."""
 
 
 @app.command()
